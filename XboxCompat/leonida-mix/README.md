@@ -141,3 +141,12 @@ as 0xc000b600 into the command list's own buffer (a writer object reached throug
 overflow virtual at +0xa0) and reads the "current program" from ctx+0x12328; with no program bound it dereferences null (FUN_140b5a5d0).
 So drawing needs the console's direct command-buffer interface (list slots 74/126/146 etc.) to be modelled, i.e. a decoder for that packet
 stream into Vulkan commands - not present upstream either. No frame is drawn.
+
+---
+## Update 2026-11-23 (night 3): what the first draw needs
+The title's built-in program table (globals at image+0x1475d59c0.., filled by FUN_1419f4df0 via FUN_141d65750) is fully populated at the
+crash, so the shader library loads (shaders.rpf is opened, DirectStorage requests succeed, no failed file opens). The crash is in the draw
+flush FUN_140032520 reading `ctx+0x12328` (current program) == 0: the per-thread draw context (TLS +0x12a8, class with the PM4-like packet
+writer at +0x127c8 and GPU-wait counter at +0x12198) was never put through its program-setting call (FUN_140122630 picks one of the built-in
+programs by render-target format) before a draw was issued from job FUN_144fd1b20. Next step: trace the context's creation/reset path
+(callers of FUN_140188430 and the code that runs at list Begin) to see which console call returns something this layer fakes.

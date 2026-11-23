@@ -3603,6 +3603,27 @@ index 0000000..854f8db
 +};
 +
 +}  // namespace dsx
+diff --git a/runtime/shims/file_system.cpp b/runtime/shims/file_system.cpp
+index 1eaf0bd..7a4485b 100644
+--- a/runtime/shims/file_system.cpp
++++ b/runtime/shims/file_system.cpp
+@@ -667,6 +667,16 @@ HANDLE WINAPI create_file_w(LPCWSTR name, DWORD access, DWORD share, LPSECURITY_
+         const DWORD error = GetLastError();
+         note_open_failure("CreateFileW", name, error, _ReturnAddress());
+         SetLastError(error);
++    } else if (rt::startup_trace::enabled()) {
++        static std::atomic<int> left{400};
++        if (left.fetch_sub(1, std::memory_order_relaxed) > 0) {
++            std::string utf8;
++            if (const int n = WideCharToMultiByte(CP_UTF8, 0, name, -1, nullptr, 0, nullptr, nullptr); n > 1) {
++                utf8.resize(static_cast<size_t>(n) - 1);
++                WideCharToMultiByte(CP_UTF8, 0, name, -1, utf8.data(), n, nullptr, nullptr);
++            }
++            rt::startup_trace::event("file_open", std::string("\"path\":") + rt::startup_trace::quote(utf8));
++        }
+     }
+     return h;
+ }
 diff --git a/runtime/shims/library_loader.cpp b/runtime/shims/library_loader.cpp
 index 2fa04c7..13a193e 100644
 --- a/runtime/shims/library_loader.cpp
@@ -4029,7 +4050,7 @@ index a1061af..7f03d3f 100644
 +    {"xmem.dll", "XMemFreeDefault", reinterpret_cast<void*>(&XMemFreeDefault)},
  );
 diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
-index b75baf1..b4e70b8 100644
+index b75baf1..05b1454 100644
 --- a/runtime/src/main.cpp
 +++ b/runtime/src/main.cpp
 @@ -20,6 +20,9 @@
@@ -4059,7 +4080,7 @@ index b75baf1..b4e70b8 100644
  int usage() {
      std::fprintf(stderr,
                   "usage: gta6rt --dry-run <image> [--game-dir DIR] [--overlay DIR] [--mods DIR] [--archetype-lookup RVA[,ARG]] [--view-mode-getter RVA] [--trace FILE]\n"
-@@ -57,7 +70,208 @@ int usage() {
+@@ -57,7 +70,220 @@ int usage() {
  
  }  // namespace
  
@@ -4105,6 +4126,18 @@ index b75baf1..b4e70b8 100644
 +                chain += one;
 +                ++found;
 +            }
++        }
++        if (is_av) {  // the title's built-in program table (FUN_1419f4df0 fills it from FUN_141d65750 lookups)
++            std::string progs;
++            for (unsigned long long a = 0x1475d59c0ull; a <= 0x1475d5a58ull; a += 8) {
++                unsigned long long v = 0;
++                SIZE_T got = 0;
++                if (!ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(a), &v, 8, &got)) break;
++                char one[32];
++                std::snprintf(one, sizeof(one), " %llx", v);
++                progs += one;
++            }
++            std::fprintf(stderr, "[rt] built-in programs:%s%s", progs.c_str(), "\n");
 +        }
 +        if (is_av) {  // raw stack words, to replay a failing call outside the process
 +            const auto* sp = reinterpret_cast<const unsigned long long*>(ep->ContextRecord->Rsp);
@@ -4268,7 +4301,7 @@ index b75baf1..b4e70b8 100644
      std::filesystem::path image, game_dir, overlay_dir, mods_dir;
      uint32_t archetype_lookup_rva = 0;  // --archetype-lookup RVA[,ARG]: the game's archetype lookup by hash
      int archetype_lookup_arg = 0;
-@@ -155,6 +369,20 @@ int wmain(int argc, wchar_t** argv) {
+@@ -155,6 +381,20 @@ int wmain(int argc, wchar_t** argv) {
      try {
          rt::Loader loader(game_dir);
          rt::Module& main_module = loader.load(image);  // maps, binds and installs TLS; runs no image code
