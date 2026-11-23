@@ -687,7 +687,7 @@ index cf3cdfa..47c2417 100644
 +    {"xg_xs.dll", "XGSuggestSwizzleMode", reinterpret_cast<void*>(&XGSuggestSwizzleMode)},
  );
 diff --git a/runtime/shims/d3d12_xs_device.cpp b/runtime/shims/d3d12_xs_device.cpp
-index e17a803..b04d07e 100644
+index e17a803..9f54d79 100644
 --- a/runtime/shims/d3d12_xs_device.cpp
 +++ b/runtime/shims/d3d12_xs_device.cpp
 @@ -26,9 +26,18 @@
@@ -1624,7 +1624,31 @@ index e17a803..b04d07e 100644
  // Calls the real device's slot `Slot` with these five words in the positions the thunk received them (see "A thunk
  // declares 14 argument words" at the top: no word may move to another stack position on the way).
  template <unsigned Slot>
-@@ -1212,7 +2003,14 @@ HRESULT proxy_create_command_list_x(DeviceProxy* self, std::uint64_t desc_word,
+@@ -1171,8 +1962,23 @@ HRESULT proxy_schedule_frame_event_x(DeviceProxy* self, std::uint64_t event, std
+ // Xbox device slot 80 (public HLE): WaitFrameEventX(event, timeout_ms, pEvent, flags, &token). It returns at once with
+ // a fresh non-zero token (the first-frame choice): there is no vblank source behind the device before a presenter, and
+ // a zero wait cannot stall the title. A null token pointer is E_POINTER, as a _Out_ parameter.
++extern "C" long gta6rt_dstorage_pending();
++
+ HRESULT proxy_wait_frame_event_x(DeviceProxy* self, std::uint64_t event, std::uint64_t timeout_ms,
+                                  std::uint64_t flags, std::uint64_t token_word) {
++    // DIAGNOSTIC (LEONIDA_WAIT_LOADS=1): hold the frame until the DirectStorage queues have drained. The title starts drawing
++    // while its shader library is still streaming in; on the console the frame pacing would not let it get ahead.
++    static const bool wait_loads = [] { char b[4]; return GetEnvironmentVariableA("LEONIDA_WAIT_LOADS", b, sizeof(b)) && b[0] == '1'; }();
++    if (wait_loads) {
++        const ULONGLONG start = GetTickCount64();
++        long pending = gta6rt_dstorage_pending();
++        static std::atomic<int> logged{0};
++        while (pending > 0 && GetTickCount64() - start < 300000) {
++            if (logged.fetch_add(1) < 5) std::fprintf(stderr, "[rt] d3d12_xs: WaitFrameEventX holds the frame: %ld DirectStorage entries pending%s", pending, "\n");
++            Sleep(50);
++            pending = gta6rt_dstorage_pending();
++        }
++    }
+     (void)event;
+     (void)timeout_ms;
+     (void)flags;
+@@ -1212,7 +2018,14 @@ HRESULT proxy_create_command_list_x(DeviceProxy* self, std::uint64_t desc_word,
      auto* allocator = allocator_proxy_real_allocator(reinterpret_cast<void*>(allocator_word));
      if (!allocator) allocator = reinterpret_cast<ID3D12CommandAllocator*>(allocator_word);
      auto* initial_state = reinterpret_cast<ID3D12PipelineState*>(initial_state_word);
@@ -1640,7 +1664,7 @@ index e17a803..b04d07e 100644
  }
  
  // Device slot 75: ID3D12Device9::CreateCommandQueue1(desc, creator_id, riid, out), called by slot index.
-@@ -1334,6 +2132,56 @@ HRESULT proxy_unwrapping_call(DeviceProxy* self, std::uint64_t a1, std::uint64_t
+@@ -1334,6 +2147,56 @@ HRESULT proxy_unwrapping_call(DeviceProxy* self, std::uint64_t a1, std::uint64_t
      return static_cast<HRESULT>(static_cast<std::uint32_t>(forward_device<Slot>(self, r1, r2, r3, r4, a5)));
  }
  
@@ -1697,7 +1721,7 @@ index e17a803..b04d07e 100644
  HRESULT proxy_create_descriptor_heap(DeviceProxy* self, const D3D12_DESCRIPTOR_HEAP_DESC* desc, const IID* riid,
                                       void** out) {
      note_slot(14);
-@@ -1342,8 +2190,27 @@ HRESULT proxy_create_descriptor_heap(DeviceProxy* self, const D3D12_DESCRIPTOR_H
+@@ -1342,8 +2205,27 @@ HRESULT proxy_create_descriptor_heap(DeviceProxy* self, const D3D12_DESCRIPTOR_H
      // No output: a capability check, answered by the device (S_FALSE, as on the PC).
      if (!out) return self->real->CreateDescriptorHeap(desc, *riid, nullptr);
  
@@ -1725,7 +1749,7 @@ index e17a803..b04d07e 100644
      if (FAILED(hr) || !created) return FAILED(hr) ? hr : E_FAIL;
  
      ID3D12DescriptorHeap* heap = static_cast<ID3D12DescriptorHeap*>(created);
-@@ -1440,6 +2307,7 @@ HRESULT proxy_create_compute_pipeline_from_native_code(DeviceProxy* self, const
+@@ -1440,6 +2322,7 @@ HRESULT proxy_create_compute_pipeline_from_native_code(DeviceProxy* self, const
      static std::atomic<std::uint64_t> calls{0};
      const std::uint64_t call = calls.fetch_add(1, std::memory_order_relaxed) + 1;
      const HRESULT hr = self->real->CreateComputePipelineState(&pc_desc, *riid, out);
@@ -1733,7 +1757,7 @@ index e17a803..b04d07e 100644
      if (FAILED(hr))
          std::fprintf(stderr,
                       "[rt] d3d12_xs: slot 67 call %llu failed with 0x%08lx (kind 0 %llu B, kind 1 %llu B, kind 6 %llu B, "
-@@ -1452,6 +2320,25 @@ HRESULT proxy_create_compute_pipeline_from_native_code(DeviceProxy* self, const
+@@ -1452,6 +2335,25 @@ HRESULT proxy_create_compute_pipeline_from_native_code(DeviceProxy* self, const
      return hr;
  }
  
@@ -1759,7 +1783,7 @@ index e17a803..b04d07e 100644
  HRESULT proxy_create_resource(DeviceProxy* self, const D3D12_HEAP_PROPERTIES* heap_properties,
                                D3D12_HEAP_FLAGS heap_flags, const D3D12_RESOURCE_DESC* xbox_desc,
                                D3D12_RESOURCE_STATES initial_state, const D3D12_CLEAR_VALUE* clear_value,
-@@ -1469,6 +2356,9 @@ HRESULT proxy_create_resource(DeviceProxy* self, const D3D12_HEAP_PROPERTIES* he
+@@ -1469,6 +2371,9 @@ HRESULT proxy_create_resource(DeviceProxy* self, const D3D12_HEAP_PROPERTIES* he
      const auto xbox_layout = static_cast<std::uint32_t>(pc_desc.Layout);
      pc_desc.Layout = pc_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER ? D3D12_TEXTURE_LAYOUT_ROW_MAJOR
                                                                           : D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -1769,7 +1793,7 @@ index e17a803..b04d07e 100644
  
      static std::atomic<bool> logged{false};
      if (!logged.exchange(true, std::memory_order_relaxed)) {
-@@ -1476,10 +2366,139 @@ HRESULT proxy_create_resource(DeviceProxy* self, const D3D12_HEAP_PROPERTIES* he
+@@ -1476,10 +2381,139 @@ HRESULT proxy_create_resource(DeviceProxy* self, const D3D12_HEAP_PROPERTIES* he
                       "[rt] d3d12_xs: slot 76 resource: dimension=%d xbox layout=0x%x -> PC layout=0x%x\n",
                       static_cast<int>(pc_desc.Dimension), xbox_layout, static_cast<unsigned>(pc_desc.Layout));
      }
@@ -1909,7 +1933,7 @@ index e17a803..b04d07e 100644
  template <unsigned Slot>
  std::uint64_t WINAPI proxy_slot(DeviceProxy* self, std::uint64_t a1, std::uint64_t a2, std::uint64_t a3,
                                  std::uint64_t a4, std::uint64_t a5, std::uint64_t a6, std::uint64_t a7,
-@@ -1498,6 +2517,93 @@ std::uint64_t WINAPI proxy_slot(DeviceProxy* self, std::uint64_t a1, std::uint64
+@@ -1498,6 +2532,93 @@ std::uint64_t WINAPI proxy_slot(DeviceProxy* self, std::uint64_t a1, std::uint64
      } else if constexpr (Slot == 9) {
          return hr_to_u64(proxy_create_command_allocator(self, a1, reinterpret_cast<const IID*>(a2),
                                                          reinterpret_cast<void**>(a3)));
@@ -2003,7 +2027,7 @@ index e17a803..b04d07e 100644
      } else if constexpr (Slot == 36) {
          return hr_to_u64(proxy_create_fence(self, a1, a2, reinterpret_cast<const IID*>(a3),
                                              reinterpret_cast<void**>(a4)));
-@@ -1549,8 +2655,15 @@ std::uint64_t WINAPI proxy_slot(DeviceProxy* self, std::uint64_t a1, std::uint64
+@@ -1549,8 +2670,15 @@ std::uint64_t WINAPI proxy_slot(DeviceProxy* self, std::uint64_t a1, std::uint64
          }
          if (Slot == routes.queue_x) {
              log_xbox_route_once(Slot, "CreateCommandQueueX", a1, a2, a3, a4, a5);
@@ -2021,7 +2045,7 @@ index e17a803..b04d07e 100644
                                                          reinterpret_cast<void**>(a3)));
          }
          if (Slot == routes.list_x) {
-@@ -1627,7 +2740,7 @@ unsigned detect_slot_count(ID3D12Device* real) {
+@@ -1627,7 +2755,7 @@ unsigned detect_slot_count(ID3D12Device* real) {
  
  }  // namespace
  
@@ -2030,7 +2054,7 @@ index e17a803..b04d07e 100644
      if (!real) return E_POINTER;
      if (!out) return E_POINTER;
      *out = nullptr;
-@@ -1638,6 +2751,7 @@ HRESULT create_device_proxy(ID3D12Device* real, REFIID riid, void** out) {
+@@ -1638,6 +2766,7 @@ HRESULT create_device_proxy(ID3D12Device* real, REFIID riid, void** out) {
      proxy->real = real;
      proxy->real_vtable = *reinterpret_cast<void***>(real);
      proxy->slot_count = detect_slot_count(real);
@@ -2038,7 +2062,7 @@ index e17a803..b04d07e 100644
      proxy->refs.store(1, std::memory_order_relaxed);
      proxy->dxgi_vtable = get_dxgi_vtable();
      proxy->adapter_provider = nullptr;
-@@ -1704,9 +2818,9 @@ ID3D12Device* device_proxy_real_device(const void* device) {
+@@ -1704,9 +2833,9 @@ ID3D12Device* device_proxy_real_device(const void* device) {
  }
  
  bool device_slot_overridden(unsigned slot) {
@@ -2051,7 +2075,7 @@ index e17a803..b04d07e 100644
          return true;
      const XboxDeviceSlotRoutes& routes = xbox_device_slot_routes();
      return slot == routes.frame_interval || slot == routes.schedule_event || slot == routes.wait_event ||
-@@ -1714,6 +2828,20 @@ bool device_slot_overridden(unsigned slot) {
+@@ -1714,6 +2843,20 @@ bool device_slot_overridden(unsigned slot) {
  }
  
  bool is_queue_proxy(const void* queue) { return is_child_proxy<ChildKind::queue>(queue); }
@@ -2140,10 +2164,10 @@ index 0019ec5..fcf838f 100644
  unsigned allocator_proxy_slot_count(const void* allocator);
 diff --git a/runtime/shims/dstorage.cpp b/runtime/shims/dstorage.cpp
 new file mode 100644
-index 0000000..5b1e180
+index 0000000..1e7ff25
 --- /dev/null
 +++ b/runtime/shims/dstorage.cpp
-@@ -0,0 +1,1075 @@
+@@ -0,0 +1,1095 @@
 +// Xbox DirectStorage for a mapped title: DStorageGetFactory and the IDStorageFactoryX2 / IDStorageQueueX2 /
 +// IDStorageFileX / IDStorageStatusArrayX objects of the console API (dstorage_xs_abi.h).
 +//
@@ -2182,6 +2206,8 @@ index 0000000..5b1e180
 +using namespace dsx;
 +
 +namespace {
++std::atomic<long> g_ds_pending{0};
++std::atomic<long> g_ds_total{0};  // requests executed (diagnostic)  // entries enqueued and not yet processed, over all queues (diagnostic wait)
 +
 +// ---- Logging ------------------------------------------------------------------------------------------------------
 +
@@ -2809,6 +2835,7 @@ index 0000000..5b1e180
 +            // submitted by then; with it off, only a Submit from another thread frees one (as the reference warns).
 +            space_.wait(lock, [&] { return closing_ || used_locked() < usable(); });
 +            if (!closing_) {
++                g_ds_pending.fetch_add(1, std::memory_order_relaxed);
 +                entries_.push_back(std::move(e));
 +                if (auto_submit() && entries_.size() - submitted_ >= half()) submit_locked();
 +                return;
@@ -2861,6 +2888,7 @@ index 0000000..5b1e180
 +            }
 +            process(e);
 +            release_references(e);
++            g_ds_pending.fetch_sub(1, std::memory_order_relaxed);
 +            {
 +                std::lock_guard lock(mutex_);
 +                in_flight_ = false;
@@ -2912,6 +2940,18 @@ index 0000000..5b1e180
 +
 +    HRESULT execute_request(const Entry& e) {
 +        const DSTORAGE_REQUEST& r = e.request;
++        {
++            static std::atomic<int> logged_requests{0}, total_requests{0};
++            const int n = total_requests.fetch_add(1, std::memory_order_relaxed);
++            g_ds_total.fetch_add(1, std::memory_order_relaxed);
++            if (logged_requests.load() < 60 && (n < 30 || n % 50 == 0)) {
++                logged_requests.fetch_add(1);
++                std::string name = e.file ? std::string(e.file->path().begin(), e.file->path().end()) : std::string("(memory)");
++                std::fprintf(stderr, "[rt] dstorage: request #%d %s offset %llu size %u -> %u options 0x%llx%s", n, name.c_str(),
++                             static_cast<unsigned long long>(r.FileOffset), static_cast<unsigned>(r.SourceSize),
++                             static_cast<unsigned>(r.DestinationSize), static_cast<unsigned long long>(r.Options.AsUINT64), "\n");
++            }
++        }
 +        const uint64_t o = r.Options.AsUINT64;
 +        if (o & options::kReservedMask) return E_DSTORAGE_RESERVED_FIELDS;
 +        if (options::source_type(o) != desc_.SourceType) return E_DSTORAGE_INVALID_SOURCE_TYPE;
@@ -3219,6 +3259,10 @@ index 0000000..5b1e180
 +    {"xcrdapi.dll", "DStorageGetFactory", reinterpret_cast<void*>(&dstorage_get_factory)},
 +    {"dstorage.dll", "DStorageGetFactory", reinterpret_cast<void*>(&dstorage_get_factory)},
 +);
++
++extern "C" long gta6rt_dstorage_pending() { return g_ds_pending.load(std::memory_order_relaxed); }
++
++extern "C" long gta6rt_dstorage_total() { return g_ds_total.load(std::memory_order_relaxed); }
 diff --git a/runtime/shims/dstorage_xs_abi.h b/runtime/shims/dstorage_xs_abi.h
 new file mode 100644
 index 0000000..854f8db
@@ -4050,20 +4094,22 @@ index a1061af..7f03d3f 100644
 +    {"xmem.dll", "XMemFreeDefault", reinterpret_cast<void*>(&XMemFreeDefault)},
  );
 diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
-index b75baf1..c482e3e 100644
+index b75baf1..650d2fb 100644
 --- a/runtime/src/main.cpp
 +++ b/runtime/src/main.cpp
-@@ -20,6 +20,9 @@
+@@ -20,6 +20,11 @@
  
  #include <cstdio>
  #include <cstdlib>
 +#include <windows.h>
 +#include <tlhelp32.h>
++#include <io.h>
++#include <fcntl.h>
 +#include <atomic>
  #include <filesystem>
  #include <map>
  #include <string>
-@@ -47,6 +50,16 @@ const char* binding_name(rt::Binding b) {
+@@ -47,6 +52,16 @@ const char* binding_name(rt::Binding b) {
      }
  }
  
@@ -4080,7 +4126,7 @@ index b75baf1..c482e3e 100644
  int usage() {
      std::fprintf(stderr,
                   "usage: gta6rt --dry-run <image> [--game-dir DIR] [--overlay DIR] [--mods DIR] [--archetype-lookup RVA[,ARG]] [--view-mode-getter RVA] [--trace FILE]\n"
-@@ -57,7 +70,232 @@ int usage() {
+@@ -57,7 +72,470 @@ int usage() {
  
  }  // namespace
  
@@ -4090,7 +4136,143 @@ index b75baf1..c482e3e 100644
 +// cache-coherent for the CPU and the GPU's host-visible memory on a PC, so skipping the write-back is
 +// behaviour-preserving here. RDPID (F3 0F C7 /7, register form) is Zen 2 as well: it returns the processor id. Both are
 +// emulated here, once each logged; any other illegal instruction is left to the normal exception path.
++// ---- XboxCompat diagnostic: LEONIDA_BP=addr,addr,... (hex, title addresses) logs every call to those functions with rcx/rdx/r8/r9
++// and the caller, by planting an int3 and stepping over it. A poor man's debugger for "does the title ever call X".
++extern "C" long gta6rt_dstorage_total();
++extern "C" long gta6rt_dstorage_pending();
++static const unsigned long long g_start_tick = GetTickCount64();
++struct BpEntry { unsigned long long addr; unsigned char original; };
++static BpEntry g_bps[16];
++static int g_bp_count = 0;
++static thread_local int t_bp_rearm = -1;
++
++static void log_bp_hit(const BpEntry& bp, const CONTEXT& c) {
++    static std::atomic<int> total{0};
++    if (total.fetch_add(1) > 400) return;
++    unsigned long long ret = 0;
++    ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(c.Rsp), &ret, 8, nullptr);
++    std::fprintf(stderr, "[bp] %llx tid %lu rcx=%llx rdx=%llx r8=%llx r9=%llx ret=%llx%s", bp.addr, GetCurrentThreadId(),
++                 (unsigned long long)c.Rcx, (unsigned long long)c.Rdx, (unsigned long long)c.R8, (unsigned long long)c.R9,
++                 ret >= 0x140000000ull ? ret - 0x140000000ull : ret, "\n");
++}
++
++DWORD WINAPI bp_installer(LPVOID) {
++    char buf[512];
++    if (!GetEnvironmentVariableA("LEONIDA_BP", buf, sizeof(buf))) return 0;
++    std::vector<unsigned long long> wanted;
++    for (char* tok = std::strtok(buf, ","); tok && wanted.size() < 16; tok = std::strtok(nullptr, ","))
++        wanted.push_back(std::strtoull(tok, nullptr, 16));
++    for (int tries = 0; tries < 600 && g_bp_count < static_cast<int>(wanted.size()); ++tries) {
++        Sleep(100);
++        for (auto a : wanted) {
++            bool have = false;
++            for (int i = 0; i < g_bp_count; ++i) have |= g_bps[i].addr == a;
++            if (have) continue;
++            unsigned char b = 0;
++            SIZE_T got = 0;
++            if (!ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<void*>(a), &b, 1, &got) || got != 1 || b == 0 || b == 0xCC) continue;
++            DWORD old = 0;
++            if (!VirtualProtect(reinterpret_cast<void*>(a), 1, PAGE_EXECUTE_READWRITE, &old)) continue;
++            g_bps[g_bp_count] = {a, b};
++            *reinterpret_cast<unsigned char*>(a) = 0xCC;
++            ++g_bp_count;
++            std::fprintf(stderr, "[bp] armed %llx%s", a, "\n");
++        }
++    }
++    return 0;
++}
++
++// ---- XboxCompat diagnostic: LEONIDA_WATCH_LIB=1 logs the title's writes into its program array (library +0xc78) with a guard page.
++static unsigned long long g_watch_lo = 0, g_watch_hi = 0;
++static thread_local bool t_watch_rearm = false;
++DWORD WINAPI watch_installer(LPVOID) {
++    char buf[4];
++    if (!GetEnvironmentVariableA("LEONIDA_WATCH_LIB", buf, sizeof(buf)) || buf[0] != '1') return 0;
++    for (int tries = 0; tries < 3000; ++tries) {
++        Sleep(20);
++        unsigned long long lib = 0, arr = 0;
++        SIZE_T got = 0;
++        if (!ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(0x1476667b8ull), &lib, 8, &got) || !lib) continue;
++        if (!ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(lib + 0xc78), &arr, 8, &got) || !arr) continue;
++        g_watch_lo = arr;
++        g_watch_hi = arr + 0x1000;
++        DWORD old = 0;
++        VirtualProtect(reinterpret_cast<void*>(arr & ~0xfffull), 0x1000, PAGE_READWRITE | PAGE_GUARD, &old);
++        std::fprintf(stderr, "[watch] guarding program array %llx (library %llx)%s", arr, lib, "\n");
++        return 0;
++    }
++    return 0;
++}
++
 +LONG CALLBACK zen2_instruction_emulator(PEXCEPTION_POINTERS ep) {
++    if (ep->ExceptionRecord->ExceptionCode == STATUS_GUARD_PAGE_VIOLATION && g_watch_lo) {
++        const unsigned long long fa = ep->ExceptionRecord->ExceptionInformation[1];
++        if (fa >= (g_watch_lo & ~0xfffull) && fa < (g_watch_lo & ~0xfffull) + 0x1000) {
++            static std::atomic<int> logged{0};
++            if (fa >= g_watch_lo && fa < g_watch_hi && logged.fetch_add(1) < 40) {
++                std::string chain;
++                CONTEXT uc = *ep->ContextRecord;
++                for (int d = 0; d < 6; ++d) {
++                    DWORD64 base = 0;
++                    PRUNTIME_FUNCTION rf = RtlLookupFunctionEntry(uc.Rip, &base, nullptr);
++                    char one[40];
++                    std::snprintf(one, sizeof(one), " %llx", base == 0x140000000ull ? uc.Rip - base : uc.Rip);
++                    chain += one;
++                    if (!rf) break;
++                    PVOID hd = nullptr; DWORD64 fr = 0;
++                    RtlVirtualUnwind(UNW_FLAG_NHANDLER, base, uc.Rip, rf, &uc, &hd, &fr, nullptr);
++                }
++                std::fprintf(stderr, "[watch] %s of program array +0x%llx at%s%s", ep->ExceptionRecord->ExceptionInformation[0] ? "write" : "read",
++                             fa - g_watch_lo, chain.c_str(), "\n");
++            }
++            ep->ContextRecord->EFlags |= 0x100;
++            t_watch_rearm = true;
++            return EXCEPTION_CONTINUE_EXECUTION;
++        }
++    }
++    if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP && t_watch_rearm) {
++        DWORD old = 0;
++        VirtualProtect(reinterpret_cast<void*>(g_watch_lo & ~0xfffull), 0x1000, PAGE_READWRITE | PAGE_GUARD, &old);
++        t_watch_rearm = false;
++        return EXCEPTION_CONTINUE_EXECUTION;
++    }
++    if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT) {
++        for (int i = 0; i < g_bp_count; ++i)
++            if (g_bps[i].addr == ep->ContextRecord->Rip) {
++                log_bp_hit(g_bps[i], *ep->ContextRecord);
++                { DWORD o = 0; VirtualProtect(reinterpret_cast<void*>(g_bps[i].addr), 1, PAGE_EXECUTE_READWRITE, &o); }
++                *reinterpret_cast<unsigned char*>(g_bps[i].addr) = g_bps[i].original;
++                ep->ContextRecord->EFlags |= 0x100;  // single step, then plant the int3 again
++                t_bp_rearm = i;
++                return EXCEPTION_CONTINUE_EXECUTION;
++            }
++    }
++    if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP && t_bp_rearm >= 0) {
++        { DWORD o = 0; VirtualProtect(reinterpret_cast<void*>(g_bps[t_bp_rearm].addr), 1, PAGE_EXECUTE_READWRITE, &o); }
++        *reinterpret_cast<unsigned char*>(g_bps[t_bp_rearm].addr) = 0xCC;
++        t_bp_rearm = -1;
++        return EXCEPTION_CONTINUE_EXECUTION;
++    }
++    // DIAGNOSTIC (LEONIDA_HACK_PROGRAM=1): the title's draw flush reads the context's current program (ctx+0x12328) and found
++    // none. Give it the title's first built-in program (image+0x1475d59c0) and retry, to see what the boot does next. This
++    // changes only this process's memory, and only when that exact null read happens.
++    if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && ep->ExceptionRecord->NumberParameters > 1 &&
++        ep->ExceptionRecord->ExceptionInformation[1] == 0x68 && ep->ContextRecord->Rax == 0) {
++        static const bool enabled = [] { char b[4]; return GetEnvironmentVariableA("LEONIDA_HACK_PROGRAM", b, sizeof(b)) && b[0] == '1'; }();
++        const auto rip = ep->ContextRecord->Rip;
++        if (enabled && rip >= 0x140b5a5d0ull && rip < 0x140b5adb4ull) {
++            const unsigned long long tls0 = *reinterpret_cast<const unsigned long long*>(__readgsqword(0x58));
++            const unsigned long long ctx = *reinterpret_cast<const unsigned long long*>(tls0 + 0x12a8);
++            const unsigned long long prog = *reinterpret_cast<const unsigned long long*>(0x1475d59c0ull);
++            if (ctx && prog) {
++                *reinterpret_cast<unsigned long long*>(ctx + 0x12328) = prog;
++                ep->ContextRecord->Rax = prog;
++                static std::atomic<int> n{0};
++                if (n.fetch_add(1) < 3) std::fprintf(stderr, "[rt] LEONIDA_HACK_PROGRAM: gave the draw context program %llx%s", prog, "\n");
++                return EXCEPTION_CONTINUE_EXECUTION;
++            }
++        }
++    }
 +    static std::atomic<int> av_logged{0};
 +    const bool is_av = ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && av_logged.fetch_add(1) < 6;
 +    if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT || is_av) {
@@ -4136,6 +4318,54 @@ index b75baf1..c482e3e 100644
 +                char one[32];
 +                std::snprintf(one, sizeof(one), " %llx", v);
 +                progs += one;
++            }
++            {
++                std::fprintf(stderr, "[rt] streaming: %ld DirectStorage requests executed, %ld pending, %llu ms since start%s", gta6rt_dstorage_total(),
++                             gta6rt_dstorage_pending(), (unsigned long long)GetTickCount64() - g_start_tick, "\n");
++            }
++            {   // the title's shader program library object (lRam1476667b8): +0xc68 stage records, +0xc78 program array
++                auto rd8 = [](unsigned long long a) { unsigned long long v = 0; SIZE_T g = 0; ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(a), &v, 8, &g); return v; };
++                const unsigned long long lib = rd8(0x1476667b8ull);
++                const unsigned long long recs = lib ? rd8(lib + 0xc68) : 0, progs = lib ? rd8(lib + 0xc78) : 0;
++                std::string t;
++                char one[40];
++                std::snprintf(one, sizeof(one), " lib=%llx recs=%llx progs=%llx |", lib, recs, progs);
++                t += one;
++                if (progs)
++                    for (int i = 0; i < 24; ++i) { std::snprintf(one, sizeof(one), " %llx", rd8(progs + i * 8)); t += one; }
++                std::fprintf(stderr, "[rt] program library:%s%s", t.c_str(), "\n");
++            }
++            {   // the faulting thread's draw context (TLS slot 0 + 0x12a8 in the title)
++                const unsigned long long tls0 = *reinterpret_cast<const unsigned long long*>(__readgsqword(0x58));
++                unsigned long long ctx = 0;
++                SIZE_T got = 0;
++                ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(tls0 + 0x12a8), &ctx, 8, &got);
++                const unsigned offs[] = {0x12320, 0x12328, 0x12330, 0x1268c, 0x12640, 0x12648, 0x12650, 0x12190, 0x127c8};
++                std::string c;
++                char one[64];
++                std::snprintf(one, sizeof(one), " ctx=%llx", ctx);
++                c += one;
++                for (unsigned o : offs) {
++                    unsigned long long v = 0;
++                    ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(ctx + o), &v, 8, &got);
++                    std::snprintf(one, sizeof(one), " +%x=%llx", o, v);
++                    c += one;
++                }
++                std::fprintf(stderr, "[rt] draw ctx:%s%s", c.c_str(), "\n");
++            }
++            {   // the globals FUN_14011f990 (current render target getter) reads
++                const unsigned long long addrs[] = {0x147665ca0ull, 0x14801335cull, 0x14a9438f4ull, 0x14a9439b8ull,
++                                                    0x14a9437b0ull, 0x147665ca8ull, 0x14745563cull, 0x147455640ull};
++                std::string g;
++                for (auto a : addrs) {
++                    unsigned long long v = 0;
++                    SIZE_T got = 0;
++                    ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(a), &v, 8, &got);
++                    char one[48];
++                    std::snprintf(one, sizeof(one), " %llx=%llx", a, v);
++                    g += one;
++                }
++                std::fprintf(stderr, "[rt] rt globals:%s%s", g.c_str(), "\n");
 +            }
 +            {   // slot-index tables FUN_140b39840 uses (zero means "this stage has no binding slot")
 +                std::string tbl;
@@ -4306,14 +4536,68 @@ index b75baf1..c482e3e 100644
 +    }
 +}
 +
++// ---- Rev6 launcher behaviour: started with no arguments (a double-click, or a shortcut), the runtime runs the title with the
++// defaults below, shows its log in the console window it already has (a console-subsystem program), keeps a copy in
++// last_run.log next to the runs, and the window goes away when the process ends. Every default can be overridden by the
++// environment variable of the same name or by passing arguments as before.
++static HANDLE g_tee_console = nullptr, g_tee_file = nullptr;
++DWORD WINAPI tee_thread(LPVOID read_pipe) {
++    char buf[4096];
++    DWORD got = 0;
++    while (ReadFile(static_cast<HANDLE>(read_pipe), buf, sizeof(buf), &got, nullptr) && got) {
++        DWORD wrote = 0;
++        if (g_tee_console) WriteFile(g_tee_console, buf, got, &wrote, nullptr);
++        if (g_tee_file != INVALID_HANDLE_VALUE && g_tee_file) WriteFile(g_tee_file, buf, got, &wrote, nullptr);
++    }
++    return 0;
++}
++
++[[maybe_unused]] static void start_log_tee() {
++    char off[4];
++    if (GetEnvironmentVariableA("LEONIDA_NO_TEE", off, sizeof(off))) return;
++    HANDLE console = GetStdHandle(STD_ERROR_HANDLE);
++    HANDLE rd = nullptr, wr = nullptr;
++    if (!CreatePipe(&rd, &wr, nullptr, 1 << 20)) return;
++    g_tee_console = console;
++    g_tee_file = CreateFileW(L"D:\\tools\\leonida\\runs\\last_run.log", GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
++    SetStdHandle(STD_ERROR_HANDLE, wr);
++    const int fd = _open_osfhandle(reinterpret_cast<intptr_t>(wr), 0x8000);
++    if (fd >= 0) _dup2(fd, 2);
++    setvbuf(stderr, nullptr, _IONBF, 0);
++    if (HANDLE t = CreateThread(nullptr, 0, &tee_thread, rd, 0, nullptr)) CloseHandle(t);
++}
++
  int wmain(int argc, wchar_t** argv) {
++    // Defaults for a launch without arguments.
++    static std::vector<std::wstring> default_storage;
++    static std::vector<wchar_t*> default_argv;
++    const auto set_default_env = [](const char* name, const char* value) {
++        char probe[4];
++        if (!GetEnvironmentVariableA(name, probe, sizeof(probe))) SetEnvironmentVariableA(name, value);
++    };
++    if (argc == 1) {
++        SetConsoleTitleW(L"Rev6 - GTA VI runtime (log)");
++        set_default_env("LEONIDA_D3D12", "vulkan");
++        set_default_env("LEONIDA_UNIMPLEMENTED", "log");
++        set_default_env("LEONIDA_SHADERS", "D:\\tools\\leonida\\work\\shaders\\spirv");
++        set_default_env("LEONIDA_PC_TAIL_UBO", "1");
++        set_default_env("LEONIDA_PAUSE_WATCHDOG", "1");
++        default_storage = {argv[0], L"--run", L"D:\\tools\\work\\exe\\game_scarlett_master.exe", L"--game-dir",
++                           L"D:\\xbox series dump\\GTA6.Xbox.v1.0.2.1"};
++        for (auto& a : default_storage) default_argv.push_back(a.data());
++        argc = static_cast<int>(default_argv.size());
++        argv = default_argv.data();
++    }
++
 +    AddVectoredExceptionHandler(1, &zen2_instruction_emulator);  // CLWB / RDPID on CPUs older than Zen 2
 +    if (HANDLE sampler = CreateThread(nullptr, 0, &thread_sampler, nullptr, 0, nullptr)) CloseHandle(sampler);
 +    if (HANDLE pauser = CreateThread(nullptr, 0, &watchdog_pauser, nullptr, 0, nullptr)) CloseHandle(pauser);
++    if (HANDLE bpt = CreateThread(nullptr, 0, &bp_installer, nullptr, 0, nullptr)) CloseHandle(bpt);
++    if (HANDLE wt = CreateThread(nullptr, 0, &watch_installer, nullptr, 0, nullptr)) CloseHandle(wt);
      std::filesystem::path image, game_dir, overlay_dir, mods_dir;
      uint32_t archetype_lookup_rva = 0;  // --archetype-lookup RVA[,ARG]: the game's archetype lookup by hash
      int archetype_lookup_arg = 0;
-@@ -155,6 +393,20 @@ int wmain(int argc, wchar_t** argv) {
+@@ -155,6 +633,20 @@ int wmain(int argc, wchar_t** argv) {
      try {
          rt::Loader loader(game_dir);
          rt::Module& main_module = loader.load(image);  // maps, binds and installs TLS; runs no image code

@@ -157,3 +157,16 @@ the slot-index tables it reads (image+0x1476667c0..) and the built-in program ta
 The draw reaches FUN_140032520 with ctx+0x12328 == 0 because the program-selecting branch (FUN_140122630, reached from FUN_1401209b0, the only
 caller, which takes a bound render-target array at ctx+0x12640) never ran: no render target was bound on this thread's context. Next: find
 what binds ctx+0x12640[] (the SetRenderTargets equivalent) and why it is skipped (likely a back-buffer/swap-chain object this layer does not hand out).
+
+---
+## Update 2026-11-23 (night 4): launcher and where the draw's missing program comes from
+- **Launching:** `gta6rt.exe` started with no arguments (double-click) now runs the title with built-in defaults (env defaults for D3D12=vulkan,
+  shaders dir, pc-tail UBO, watchdog pause; image `D:\tools\work\exe\game_scarlett_master.exe`, game dir the dump). It is a console-subsystem
+  program, so the log shows in its own window and the window closes when the process ends. Any argument or environment variable overrides.
+- **Diagnostics added** (all opt-in by env): `LEONIDA_BP=addr,...` (int3 call logger), `LEONIDA_WATCH_LIB=1` (guard page on the program array),
+  `LEONIDA_HACK_PROGRAM=1`, `LEONIDA_WAIT_LOADS=1`, `LEONIDA_SAMPLE_THREADS=n`, plus crash dumps (draw context, program library, RT globals).
+- **Finding:** the draw's program comes from `lib[0xc78][idx]` (library object `*(image+0x1476667b8)`), which is never written: the
+  title's init is a *task graph* (329 `FUN_141bb1cf0(fn, hash, flag)` registrations by FUN_14589f0e0 and friends, completion markers via
+  FUN_141bb1b60 -> FUN_142225ef0). None of the registered task bodies (e.g. the state/program registration FUN_1457870f0 via
+  FUN_1457780e0) ever runs although every pool worker is idle (waiting at FUN_14221c1f0), so the work-queue wake-up path is the next suspect.
+  DirectStorage streaming itself is fine now (4200 zlib requests of shaders.rpf executed, 0 pending).
