@@ -183,3 +183,15 @@ New upstream docs worth reading: pso_cache.md (the 275 MB PSO cache is what our 
 ~2.7k compute PSOs with native code), sgd5_render_states.md, first_light.md.
 Open: the draw's program (`lib[0xc78][idx]`, library object at image+0x1476667b8) holds unrelocated packed values for idx >= 128 and zeros
 for idx < 128, i.e. the shader library resource is not fully "placed"; the first frame (main thread, FUN_1423ca960) needs it.
+
+### Findings after the rebase (night 5, continued)
+- `lib` (image+0x1476667b8) is the SGD5 effect/shader library, deserialized by FUN_14247b6c0 from `shaders.rpf` (stream reader FUN_1451d2260):
+  +0xc68 stage-record dwords (index = k, low 15 bits = name offset), +0xc70 0x18-byte pass records, +0xc78 an 8-byte-per-pass **runtime
+  program slot array** (allocated after the bytes read, not read from the file: starts zero), +0xcf0 string pool. Slots are filled at run time;
+  the only code that stores into the array found by scan is FUN_1457870f0 (reached from task FUN_1457780e0 through the init-task graph
+  registered by FUN_14589f0e0 and run by FUN_142225870(registry, level)). At the crash slots 0..127 are zero.
+- The frame job FUN_144fd1b20 returns early while `byte image+0x147453ee0` is 0 (set to 1 at the end of FUN_1422571e0); the main thread's
+  init FUN_1421b8960 waits for a game-thread frame (FUN_1423ca960) before it reaches FUN_142225870(..., 2). Draws on the game thread after
+  that flag run concurrently with the main thread's remaining init, before the program slots are filled. Whether the retail order has the
+  tasks run earlier (or the frame thread held) is what to establish next; a breakpoint-based gate (LEONIDA_GATE) is racy for that because the
+  single-step re-arm leaves the function unarmed for other threads for an instant.
