@@ -4050,7 +4050,7 @@ index a1061af..7f03d3f 100644
 +    {"xmem.dll", "XMemFreeDefault", reinterpret_cast<void*>(&XMemFreeDefault)},
  );
 diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
-index b75baf1..05b1454 100644
+index b75baf1..c482e3e 100644
 --- a/runtime/src/main.cpp
 +++ b/runtime/src/main.cpp
 @@ -20,6 +20,9 @@
@@ -4080,7 +4080,7 @@ index b75baf1..05b1454 100644
  int usage() {
      std::fprintf(stderr,
                   "usage: gta6rt --dry-run <image> [--game-dir DIR] [--overlay DIR] [--mods DIR] [--archetype-lookup RVA[,ARG]] [--view-mode-getter RVA] [--trace FILE]\n"
-@@ -57,7 +70,220 @@ int usage() {
+@@ -57,7 +70,232 @@ int usage() {
  
  }  // namespace
  
@@ -4136,6 +4136,18 @@ index b75baf1..05b1454 100644
 +                char one[32];
 +                std::snprintf(one, sizeof(one), " %llx", v);
 +                progs += one;
++            }
++            {   // slot-index tables FUN_140b39840 uses (zero means "this stage has no binding slot")
++                std::string tbl;
++                for (unsigned long long a = 0x1476667c0ull; a < 0x147666800ull; a += 8) {
++                    unsigned long long v = 0;
++                    SIZE_T got = 0;
++                    if (!ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(a), &v, 8, &got)) break;
++                    char one[32];
++                    std::snprintf(one, sizeof(one), " %llx", v);
++                    tbl += one;
++                }
++                std::fprintf(stderr, "[rt] slot tables:%s%s", tbl.c_str(), "\n");
 +            }
 +            std::fprintf(stderr, "[rt] built-in programs:%s%s", progs.c_str(), "\n");
 +        }
@@ -4301,7 +4313,7 @@ index b75baf1..05b1454 100644
      std::filesystem::path image, game_dir, overlay_dir, mods_dir;
      uint32_t archetype_lookup_rva = 0;  // --archetype-lookup RVA[,ARG]: the game's archetype lookup by hash
      int archetype_lookup_arg = 0;
-@@ -155,6 +381,20 @@ int wmain(int argc, wchar_t** argv) {
+@@ -155,6 +393,20 @@ int wmain(int argc, wchar_t** argv) {
      try {
          rt::Loader loader(game_dir);
          rt::Module& main_module = loader.load(image);  // maps, binds and installs TLS; runs no image code

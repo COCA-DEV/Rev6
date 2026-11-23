@@ -150,3 +150,10 @@ flush FUN_140032520 reading `ctx+0x12328` (current program) == 0: the per-thread
 writer at +0x127c8 and GPU-wait counter at +0x12198) was never put through its program-setting call (FUN_140122630 picks one of the built-in
 programs by render-target format) before a draw was issued from job FUN_144fd1b20. Next step: trace the context's creation/reset path
 (callers of FUN_140188430 and the code that runs at list Begin) to see which console call returns something this layer fakes.
+
+### Draw-context trace (continued)
+FUN_140b39840(blob, 0xf, 0) is the pass-begin's shader-program/state binder (it writes ctx+0x12328 only on some switch cases, `default:` skips);
+the slot-index tables it reads (image+0x1476667c0..) and the built-in program table are populated at the crash, so the library side is fine.
+The draw reaches FUN_140032520 with ctx+0x12328 == 0 because the program-selecting branch (FUN_140122630, reached from FUN_1401209b0, the only
+caller, which takes a bound render-target array at ctx+0x12640) never ran: no render target was bound on this thread's context. Next: find
+what binds ctx+0x12640[] (the SetRenderTargets equivalent) and why it is skipped (likely a back-buffer/swap-chain object this layer does not hand out).
