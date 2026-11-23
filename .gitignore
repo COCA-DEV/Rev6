@@ -1,0 +1,16 @@
+# Never commit game files or anything extracted/derived from them
+*.rpf
+*.xvd
+*.ttpf
+*.exe
+*.dll
+*.dxbc
+*.spv
+*.spvasm
+*.bin
+*.obj
+*.pdb
+build/
+data/
+decomp_*.c
+gpso_dump_*.bin

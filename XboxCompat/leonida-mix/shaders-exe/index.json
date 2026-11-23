@@ -1,0 +1,42 @@
+[
+  {
+    "file": "exe_PS_001_de69650a_Wrapped.dxbc",
+    "stage": "ps"
+  },
+  {
+    "file": "exe_PS_002_f9614477_Wrapped.dxbc",
+    "stage": "ps"
+  },
+  {
+    "file": "exe_PS_003_55a139c4_Wrapped.dxbc",
+    "stage": "ps"
+  },
+  {
+    "file": "exe_PS_004_4ef5aa7d_Wrapped.dxbc",
+    "stage": "ps"
+  },
+  {
+    "file": "exe_PS_005_6ffb5e3a_Wrapped.dxbc",
+    "stage": "ps"
+  },
+  {
+    "file": "exe_PS_006_ea3d73fa_Wrapped.dxbc",
+    "stage": "ps"
+  },
+  {
+    "file": "exe_PS_007_48cd45d8_Wrapped.dxbc",
+    "stage": "ps"
+  },
+  {
+    "file": "exe_PS_008_d0ed2754_Wrapped.dxbc",
+    "stage": "ps"
+  },
+  {
+    "file": "exe_PS_009_38debc9f_Wrapped.dxbc",
+    "stage": "ps"
+  },
+  {
+    "file": "exe_VS_000_1f201561_Wrapped.dxbc",
+    "stage": "vs"
+  }
+]

@@ -1,0 +1,41 @@
+{
+ "xg_xs.dll": [
+  "XGCreateTextureComputer",
+  "XGSuggestSwizzleMode"
+ ],
+ "chad.dll": [
+  "XDspActivate",
+  "XDspConnectWithMaximumStreamLimit",
+  "XDspDeactivate",
+  "XDspDisconnect",
+  "XDspSubmitCommand"
+ ],
+ "xapu.dll": [
+  "XApuConnect",
+  "XApuDequeueResult",
+  "XApuDisconnect",
+  "XApuEnqueueCommand",
+  "XApuGetResultCount"
+ ],
+ "AcpHal.dll": [
+  "AcpHalAllocateShapeContexts",
+  "AcpHalCreate",
+  "AcpHalReleaseShapeContexts",
+  "ApuAlloc",
+  "ApuCreateHeap",
+  "ApuFree",
+  "ApuIsVirtualAddressValid",
+  "ApuMapApuAddress",
+  "ApuMapVirtualAddress"
+ ],
+ "XCRDAPI.dll": [
+  "DStorageGetFactory"
+ ],
+ "xmem.dll (missing, stubbed)": [
+  "XMemAllocDefault",
+  "XMemFreeDefault",
+  "XMemIsToolsMemAvailable",
+  "XMemTransferMemory"
+ ],
+ "d3d12_xs.dll (missing, stubbed)": []
+}
