@@ -195,3 +195,14 @@ for idx < 128, i.e. the shader library resource is not fully "placed"; the first
   that flag run concurrently with the main thread's remaining init, before the program slots are filled. Whether the retail order has the
   tasks run earlier (or the frame thread held) is what to establish next; a breakpoint-based gate (LEONIDA_GATE) is racy for that because the
   single-step re-arm leaves the function unarmed for other threads for an instant.
+
+### Frame hold hook and the lazy program passes (night 5, end)
+- `LEONIDA_FRAME_HOLD=1` replaces the entry of the frame job (FUN_144fd1b20; first 14 bytes are position-independent pushes) with an absolute
+  jump to a thunk that calls a host function, runs the stolen bytes and jumps back (never un-armed, unlike int3). It holds the game thread's
+  frames while `lib[0xc78][42]` is empty (limit `LEONIDA_FRAME_HOLD_MS`, default 120 s). With it the game thread stays quiet and the main thread
+  proceeds, then crashes in its own draw (FUN_1421b8b20 chain -> FUN_145e50f25 -> draw flush) with the same empty slot.
+- The library loader FUN_14247b6c0 fills the per-pass program slots like this: for each 0x18-byte pass record, passes with flag byte 0 get
+  `FUN_141d65750(...)` stored at once; the others get slot = 0 and a lazy registration `FUN_142476d40(pass+0xe8, state words...)`, i.e. the
+  program is created later by the pipeline job (FUN_142479760 / the PSO cache path). Slots 0..127 are lazy ones. Only 3 CreatePipelineStateX
+  calls happen in a run, so those lazy programs are never created: the next question is who is meant to drain FUN_142476d40's requests
+  (worker pool idle at FUN_14221c1f0; the queue wake-up/semaphore path is the suspect).

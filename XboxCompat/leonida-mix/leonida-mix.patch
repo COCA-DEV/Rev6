@@ -5103,7 +5103,7 @@ diff -ruN a/runtime/shims/xmem.cpp src/runtime/shims/xmem.cpp
 +);
 diff -ruN a/runtime/src/main.cpp src/runtime/src/main.cpp
 --- a/runtime/src/main.cpp	2026-11-23 18:01:51.000000000 -0300
-+++ b/runtime/src/main.cpp	2026-11-23 19:30:27.741702700 -0300
++++ b/runtime/src/main.cpp	2026-11-23 19:33:14.046399200 -0300
 @@ -20,6 +20,11 @@
  
  #include <cstdio>
@@ -5133,7 +5133,7 @@ diff -ruN a/runtime/src/main.cpp src/runtime/src/main.cpp
  int usage() {
      std::fprintf(stderr,
                   "usage: gta6rt --dry-run <image> [--game-dir DIR] [--overlay DIR] [--mods DIR] [--archetype-lookup RVA[,ARG]] [--view-mode-getter RVA] [--trace FILE]\n"
-@@ -58,7 +73,587 @@
+@@ -58,7 +73,666 @@
  
  }  // namespace
  
@@ -5225,6 +5225,84 @@ diff -ruN a/runtime/src/main.cpp src/runtime/src/main.cpp
 +        DWORD old = 0;
 +        VirtualProtect(reinterpret_cast<void*>(arr & ~0xfffull), 0x1000, PAGE_READWRITE | PAGE_GUARD, &old);
 +        std::fprintf(stderr, "[watch] guarding program array %llx (library %llx)%s", arr, lib, "\n");
++        return 0;
++    }
++    return 0;
++}
++
++// ---- XboxCompat diagnostic: LEONIDA_FRAME_HOLD=1 holds the title's frame job (FUN_144fd1b20, image+0x4fd1b20) while its program slot
++// for stage 0xf is still empty, so the init task graph on the main thread can fill the shader library's slots first. The job's first
++// 14 bytes are position-independent pushes, so the function entry is replaced by an absolute jump to a thunk that saves the volatile
++// registers, calls frame_hold_hook, restores them, runs the stolen bytes and jumps back. Unlike an int3 it is never un-armed.
++static void frame_hold_hook() {
++    auto rd8 = [](unsigned long long a) { unsigned long long v = 0; SIZE_T g = 0; ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(a), &v, 8, &g); return v; };
++    unsigned char flag = 0;
++    SIZE_T got = 0;
++    ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(0x147453ee0ull), &flag, 1, &got);
++    if (!flag) return;
++    static std::atomic<ULONGLONG> first{0};
++    ULONGLONG zero = 0;
++    first.compare_exchange_strong(zero, GetTickCount64());
++    static const DWORD limit = [] { char b[16]; return GetEnvironmentVariableA("LEONIDA_FRAME_HOLD_MS", b, sizeof(b)) ? static_cast<DWORD>(std::strtoul(b, nullptr, 10)) : 120000u; }();
++    bool announced = false;
++    for (;;) {
++        const unsigned long long lib = rd8(0x1476667b8ull), arr = lib ? rd8(lib + 0xc78) : 0;
++        if (arr && rd8(arr + 42 * 8)) {
++            static std::atomic<bool> said{false};
++            if (!said.exchange(true)) std::fprintf(stderr, "[hold] program slot 42 is filled; frames continue (%llu ms)%s", GetTickCount64() - first.load(), "\n");
++            return;
++        }
++        if (GetTickCount64() - first.load() > limit) {
++            static std::atomic<bool> said{false};
++            if (!said.exchange(true)) std::fprintf(stderr, "[hold] gave up after %lu ms: program slot 42 still empty%s", limit, "\n");
++            return;
++        }
++        if (!announced) {
++            announced = true;
++            static std::atomic<bool> said{false};
++            if (!said.exchange(true)) std::fprintf(stderr, "[hold] frame job held until the shader library's program slots are filled%s", "\n");
++        }
++        Sleep(2);
++    }
++}
++
++DWORD WINAPI frame_hold_installer(LPVOID) {
++    char buf[4];
++    if (!GetEnvironmentVariableA("LEONIDA_FRAME_HOLD", buf, sizeof(buf)) || buf[0] != '1') return 0;
++    constexpr unsigned long long entry = 0x144fd1b20ull;
++    static const unsigned char expect[14] = {0x41, 0x57, 0x41, 0x56, 0x41, 0x54, 0x56, 0x57, 0x55, 0x53, 0x48, 0x83, 0xec, 0x40};
++    for (int tries = 0; tries < 3000; ++tries) {
++        Sleep(10);
++        unsigned char cur[14] = {};
++        SIZE_T got = 0;
++        if (!ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<void*>(entry), cur, 14, &got) || got != 14) continue;
++        if (std::memcmp(cur, expect, 14) != 0) continue;
++        auto* thunk = static_cast<unsigned char*>(VirtualAlloc(nullptr, 256, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE));
++        if (!thunk) return 0;
++        unsigned char* p = thunk;
++        const unsigned char save[] = {0x50, 0x51, 0x52, 0x41, 0x50, 0x41, 0x51, 0x41, 0x52, 0x41, 0x53, 0x48, 0x83, 0xEC, 0x20};
++        std::memcpy(p, save, sizeof(save));
++        p += sizeof(save);
++        *p++ = 0x48; *p++ = 0xB8;  // mov rax, imm64
++        const unsigned long long hook = reinterpret_cast<unsigned long long>(&frame_hold_hook);
++        std::memcpy(p, &hook, 8);
++        p += 8;
++        *p++ = 0xFF; *p++ = 0xD0;  // call rax
++        const unsigned char restore[] = {0x48, 0x83, 0xC4, 0x20, 0x41, 0x5B, 0x41, 0x5A, 0x41, 0x59, 0x41, 0x58, 0x5A, 0x59, 0x58};
++        std::memcpy(p, restore, sizeof(restore));
++        p += sizeof(restore);
++        std::memcpy(p, expect, 14);  // the stolen bytes
++        p += 14;
++        const unsigned long long back = entry + 14;
++        *p++ = 0xFF; *p++ = 0x25; *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;
++        std::memcpy(p, &back, 8);
++        DWORD old = 0;
++        if (!VirtualProtect(reinterpret_cast<void*>(entry), 14, PAGE_EXECUTE_READWRITE, &old)) return 0;
++        unsigned char patch[14] = {0xFF, 0x25, 0, 0, 0, 0};
++        const unsigned long long to = reinterpret_cast<unsigned long long>(thunk);
++        std::memcpy(patch + 6, &to, 8);
++        std::memcpy(reinterpret_cast<void*>(entry), patch, 14);
++        std::fprintf(stderr, "[hold] frame job hooked at %llx%s", entry, "\n");
 +        return 0;
 +    }
 +    return 0;
@@ -5718,10 +5796,11 @@ diff -ruN a/runtime/src/main.cpp src/runtime/src/main.cpp
 +    if (HANDLE pauser = CreateThread(nullptr, 0, &watchdog_pauser, nullptr, 0, nullptr)) CloseHandle(pauser);
 +    if (HANDLE bpt = CreateThread(nullptr, 0, &bp_installer, nullptr, 0, nullptr)) CloseHandle(bpt);
 +    if (HANDLE wt = CreateThread(nullptr, 0, &watch_installer, nullptr, 0, nullptr)) CloseHandle(wt);
++    if (HANDLE fh = CreateThread(nullptr, 0, &frame_hold_installer, nullptr, 0, nullptr)) CloseHandle(fh);
      std::filesystem::path image, game_dir, overlay_dir, mods_dir;
      uint32_t archetype_lookup_rva = 0;  // --archetype-lookup RVA[,ARG]: the game's archetype lookup by hash
      int archetype_lookup_arg = 0;
-@@ -156,6 +751,20 @@
+@@ -156,6 +830,20 @@
      try {
          rt::Loader loader(game_dir);
          rt::Module& main_module = loader.load(image);  // maps, binds and installs TLS; runs no image code
