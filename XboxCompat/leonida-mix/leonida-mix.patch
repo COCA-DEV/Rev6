@@ -1,8 +1,7 @@
-diff --git a/runtime/CMakeLists.txt b/runtime/CMakeLists.txt
-index 6bf678a..2df7256 100644
---- a/runtime/CMakeLists.txt
-+++ b/runtime/CMakeLists.txt
-@@ -117,7 +117,12 @@ if(WIN32 AND LEONIDA_BUILD_WINDOWS_RUNTIME)
+diff -ruN a/runtime/CMakeLists.txt src/runtime/CMakeLists.txt
+--- a/runtime/CMakeLists.txt	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/CMakeLists.txt	2026-11-23 19:14:31.156027100 -0300
+@@ -118,7 +118,12 @@
      shims/xgameruntime_offline.cpp
      shims/library_loader.cpp
      shims/process.cpp
@@ -15,7 +14,7 @@ index 6bf678a..2df7256 100644
    add_dependencies(gta6rt gta6rt_tls_host)
    target_compile_definitions(gta6rt PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE)
    target_compile_options(gta6rt PRIVATE /W4 /permissive- /utf-8)
-@@ -719,6 +724,61 @@ if(BUILD_TESTING)
+@@ -756,6 +761,61 @@
        COMMAND loader_tls_test "$<TARGET_FILE:tiny_tls>"
      )
  
@@ -77,7 +76,7 @@ index 6bf678a..2df7256 100644
      # DisableThreadLibraryCalls from a mapped DllMain (shims/library_loader.cpp). The fixture is built without the CRT, so
      # DllMain's only work is that one call. No game files.
      add_library(dll_thread_calls SHARED test/fixtures/dll_thread_calls.cpp)
-@@ -2706,7 +2766,7 @@ if(TARGET Vulkan::Headers)
+@@ -2804,7 +2864,7 @@
  
      # The loader can create this device instead of the host's (D3D12XboxCreateDevice, LEONIDA_D3D12=vulkan).
      if(TARGET gta6rt)
@@ -86,10 +85,9 @@ index 6bf678a..2df7256 100644
        target_compile_definitions(gta6rt PRIVATE LEONIDA_VULKAN_DEVICE)
  
        # A stand-in title that imports d3d12_xs.dll!D3D12XboxCreateDevice and runs a clear and a readback on the
-diff --git a/runtime/shims/d3d12_vulkan_device.cpp b/runtime/shims/d3d12_vulkan_device.cpp
-index ec75951..ebf072a 100644
---- a/runtime/shims/d3d12_vulkan_device.cpp
-+++ b/runtime/shims/d3d12_vulkan_device.cpp
+diff -ruN a/runtime/shims/d3d12_vulkan_device.cpp src/runtime/shims/d3d12_vulkan_device.cpp
+--- a/runtime/shims/d3d12_vulkan_device.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/shims/d3d12_vulkan_device.cpp	2026-11-23 19:14:31.211040100 -0300
 @@ -53,9 +53,20 @@
  #include <set>
  #include <string>
@@ -111,7 +109,7 @@ index ec75951..ebf072a 100644
  namespace rt::d3d12 {
  namespace {
  
-@@ -508,7 +519,9 @@ struct TextureCreateInfo {
+@@ -508,7 +519,9 @@
          if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
          if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
          // No B8G8R8X8 view is ever a UAV, so its typeless family needs no storage usage (not every GPU has it for BGRA8).
@@ -122,7 +120,7 @@ index ec75951..ebf072a 100644
              info.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
              if (!volume && info.samples == VK_SAMPLE_COUNT_1_BIT && attachment_usable)
                  info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-@@ -576,6 +589,50 @@ struct DeviceState {
+@@ -576,6 +589,50 @@
          create.pQueueFamilyIndices = families.data();
      }
      std::unique_ptr<leonida::VulkanContext> context;
@@ -173,7 +171,7 @@ index ec75951..ebf072a 100644
      VkPhysicalDeviceMemoryProperties memory{};
      // D3D-96: upload-heap buffers prefer DEVICE_LOCAL | HOST_VISIBLE memory, so the GPU reads them from VRAM. Only
      // with Resizable BAR (leonida::resizable_bar); LEONIDA_UPLOAD_SYSMEM=1 keeps them in system memory to compare.
-@@ -782,6 +839,10 @@ struct DeviceState {
+@@ -785,6 +842,10 @@
                  return nullptr;
              }
              std::string error;
@@ -184,7 +182,7 @@ index ec75951..ebf072a 100644
              if (dir.empty())
                  std::fprintf(stderr, "[rt] d3d12: no translated shaders: set LEONIDA_SHADERS to <work>/shaders/spirv\n");
              else if (!shader_library.load(dir, &error))
-@@ -859,6 +920,9 @@ struct DeviceState {
+@@ -862,6 +923,9 @@
              result = image_format_properties(info.physical, create.format, create.imageType, create.tiling,
                                               create.usage, create.flags, &limits);
          }
@@ -194,7 +192,7 @@ index ec75951..ebf072a 100644
          if (result == VK_ERROR_FORMAT_NOT_SUPPORTED) return E_INVALIDARG;
          if (result == VK_ERROR_OUT_OF_HOST_MEMORY || result == VK_ERROR_OUT_OF_DEVICE_MEMORY) return E_OUTOFMEMORY;
          if (result != VK_SUCCESS) return E_FAIL;
-@@ -948,8 +1012,9 @@ struct DeviceState {
+@@ -951,8 +1015,9 @@
          if (!xr_bias_compatible(desc)) return {};
          if (desc.Format == DXGI_FORMAT_A8_UNORM &&
              (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.SampleDesc.Count != 1 ||
@@ -206,7 +204,7 @@ index ec75951..ebf072a 100644
              return {};
          if (desc.Format == DXGI_FORMAT_R9G9B9E5_SHAREDEXP) {
              if ((desc.SampleDesc.Count != 1 && (!(desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) ||
-@@ -1359,7 +1424,8 @@ struct DeviceState {
+@@ -1362,7 +1427,8 @@
  // The Vulkan format for a texture this layer can create, with the D24 fallback; VK_FORMAT_UNDEFINED, after a log
  // line, when it cannot. Committed and placed textures share it so both refuse the same formats for the same reason.
  Format texture_format(const DeviceState& device, const D3D12_RESOURCE_DESC& desc) {
@@ -216,7 +214,7 @@ index ec75951..ebf072a 100644
      if (format.format == VK_FORMAT_D24_UNORM_S8_UINT && !device.depth_usable(format.format)) {
          log_once("D24_UNORM_S8_UINT unavailable, using D32_SFLOAT_S8_UINT; format", desc.Format);
          format.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
-@@ -1664,9 +1730,21 @@ public:
+@@ -1671,9 +1737,21 @@
              storage_.reset(new std::byte[std::size_t(bytes)]());
              cpu_ = reinterpret_cast<std::uint8_t*>(storage_.get());
          }
@@ -238,7 +236,7 @@ index ec75951..ebf072a 100644
          if (in_arena_) device_.arena_release(arena_offset_, VkDeviceSize(desc_.NumDescriptors) * kDescriptorSize,
                                              DeviceState::arena_descriptor_heap);
      }
-@@ -1693,6 +1771,7 @@ private:
+@@ -1703,6 +1781,7 @@
      D3D12_DESCRIPTOR_HEAP_DESC desc_;
      std::unique_ptr<std::byte[]> storage_;
      std::uint8_t* cpu_ = nullptr;
@@ -246,7 +244,7 @@ index ec75951..ebf072a 100644
      VkDeviceSize arena_offset_ = 0;
      bool in_arena_ = false;
  };
-@@ -3055,6 +3134,12 @@ HRESULT parse_pipeline_stream(const D3D12_PIPELINE_STATE_STREAM_DESC& desc, Pipe
+@@ -3073,6 +3152,12 @@
      return S_OK;
  }
  
@@ -259,7 +257,7 @@ index ec75951..ebf072a 100644
  class PipelineState final
      : public Child<PipelineState, XboxPipelineStateStubs, ID3D12Object, ID3D12DeviceChild, ID3D12Pageable,
                     ID3D12PipelineState> {
-@@ -3083,7 +3168,16 @@ public:
+@@ -3101,7 +3186,16 @@
      // so pipelines are refused there with the limit named instead of breaking VUID-VkPushConstantRange-size-00298.
      bool push_constants_fit() const {
          const std::uint32_t limit = device_.info.max_push_constants_size;
@@ -276,7 +274,7 @@ index ec75951..ebf072a 100644
          log_once("pipelines need 144 bytes of push constants (uniform-buffer fallback not built yet); "
                   "maxPushConstantsSize",
                   int(limit));
-@@ -3591,7 +3685,7 @@ public:
+@@ -3642,7 +3736,7 @@
          graphics_.color_formats.assign(desc.NumRenderTargets, VK_FORMAT_UNDEFINED);
          for (UINT i = 0; i < desc.NumRenderTargets; ++i) {
              if (desc.RTVFormats[i] == DXGI_FORMAT_UNKNOWN) continue;
@@ -285,7 +283,7 @@ index ec75951..ebf072a 100644
              if (graphics_.color_formats[i] == VK_FORMAT_UNDEFINED) {
                  log_once("render-target format not supported yet:", desc.RTVFormats[i]);
                  return E_INVALIDARG;
-@@ -3659,17 +3753,24 @@ public:
+@@ -3710,17 +3804,24 @@
          for (const Stage& stage : stages)
              if (stage.bit != VK_SHADER_STAGE_GEOMETRY_BIT || device_.info.features.geometryShader)
                  graphics_.push_stages |= stage.bit;
@@ -314,7 +312,7 @@ index ec75951..ebf072a 100644
          if (vk.vkCreatePipelineLayout(dev, &layout_info, nullptr, &graphics_.layout) != VK_SUCCESS) return E_FAIL;
  
          // Kept for variants: a draw that leaves a slot unbound needs this pipeline with that format undefined.
-@@ -3700,6 +3801,7 @@ public:
+@@ -3751,6 +3852,7 @@
              code_base_ = offset;
              graphics_.code_base = offset;
          }
@@ -322,7 +320,7 @@ index ec75951..ebf072a 100644
          device_.context->add_graphics_pipeline(id(), graphics_);
          registered_ = true;
          is_graphics_ = true;
-@@ -3707,6 +3809,7 @@ public:
+@@ -3758,6 +3860,7 @@
      }
  
      HRESULT create_compute(const D3D12_COMPUTE_PIPELINE_STATE_DESC& desc) {
@@ -330,7 +328,7 @@ index ec75951..ebf072a 100644
          auto& vk = device_.context->vk;
          const VkDevice dev = device_.info.device;
          if (!desc.CS.pShaderBytecode || !desc.CS.BytecodeLength) return E_INVALIDARG;
-@@ -3779,17 +3882,24 @@ public:
+@@ -3832,17 +3935,24 @@
          module_info.codeSize = words.size() * 4;
          module_info.pCode = words.data();
          if (vk.vkCreateShaderModule(dev, &module_info, nullptr, &module_) != VK_SUCCESS) return E_FAIL;
@@ -359,7 +357,7 @@ index ec75951..ebf072a 100644
          if (vk.vkCreatePipelineLayout(dev, &layout_info, nullptr, &pipeline_.layout) != VK_SUCCESS) return E_FAIL;
          VkComputePipelineCreateInfo pipeline_info{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
          pipeline_info.stage = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
-@@ -3799,8 +3909,21 @@ public:
+@@ -3852,8 +3962,21 @@
          VkPipelineShaderStageRequiredSubgroupSizeCreateInfo required_size{};
          subgroup_size_for(*entry, required_size, pipeline_info.stage);
          pipeline_info.layout = pipeline_.layout;
@@ -383,7 +381,7 @@ index ec75951..ebf072a 100644
              return E_FAIL;
  
          // The code base: shaders read constant tables embedded in their own program through s_getpc_b64. The
-@@ -3812,6 +3935,7 @@ public:
+@@ -3865,6 +3988,7 @@
          code_bytes_ = code.size();
          code_base_ = offset;
          pipeline_.code_base = offset;
@@ -391,7 +389,7 @@ index ec75951..ebf072a 100644
          device_.context->add_pipeline(id(), pipeline_);
          registered_ = true;
          return S_OK;
-@@ -4906,6 +5030,8 @@ public:
+@@ -4959,6 +5083,8 @@
          }
          if (info.bindless && state_.context->loaded() && !create_bindless(get_device))
              std::fprintf(stderr, "[rt] d3d12: the bindless set 0 could not be created\n");
@@ -400,7 +398,7 @@ index ec75951..ebf072a 100644
          query_luid_and_clock(get_device);
          // Timestamps: what the one VkQueue every D3D12 queue submits to can write.
          VkPhysicalDeviceProperties properties{};
-@@ -4973,6 +5099,72 @@ public:
+@@ -5026,6 +5152,72 @@
          }
      }
  
@@ -473,7 +471,7 @@ index ec75951..ebf072a 100644
      // Set 0 of every translated shader that declares bindings: images, samplers and the descriptor hash table
      // (docs section 3.4). Each ExecuteCommandLists brings it up to date before its commands are written.
      bool create_bindless(PFN_vkGetDeviceProcAddr get_device) {
-@@ -5042,6 +5234,7 @@ public:
+@@ -5095,6 +5287,7 @@
              },
              &state_);
          state_.context->set_bindless_prepare([this](VkCommandBuffer command_buffer) {
@@ -481,7 +479,7 @@ index ec75951..ebf072a 100644
              std::unique_lock lock(state_.descriptor_mutex);
              if (!state_.bindless->fallbacks_ready()) state_.bindless->record_fallback_init(command_buffer);
              auto& context = *state_.context;
-@@ -5513,6 +5706,7 @@ public:
+@@ -5570,6 +5763,7 @@
              case D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH: size += sizeof(D3D12_DISPATCH_ARGUMENTS); break;
              case D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_RAYS: size += sizeof(D3D12_DISPATCH_RAYS_DESC); break;
              case D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH: size += sizeof(D3D12_DISPATCH_MESH_ARGUMENTS); break;
@@ -489,7 +487,7 @@ index ec75951..ebf072a 100644
              case D3D12_INDIRECT_ARGUMENT_TYPE_VERTEX_BUFFER_VIEW: size += sizeof(D3D12_VERTEX_BUFFER_VIEW); break;
              case D3D12_INDIRECT_ARGUMENT_TYPE_INDEX_BUFFER_VIEW: size += sizeof(D3D12_INDEX_BUFFER_VIEW); break;
              case D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT: size += UINT64{4} * arg.Constant.Num32BitValuesToSet; break;
-@@ -5522,7 +5716,7 @@ public:
+@@ -5579,7 +5773,7 @@
              case D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW: size += sizeof(D3D12_GPU_VIRTUAL_ADDRESS); break;
              default: return E_INVALIDARG;
              }
@@ -498,7 +496,7 @@ index ec75951..ebf072a 100644
                                arg.Type == D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_RAYS ||
                                arg.Type == D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
              const bool root_argument = !draw && arg.Type != D3D12_INDIRECT_ARGUMENT_TYPE_VERTEX_BUFFER_VIEW &&
-@@ -5536,6 +5730,13 @@ public:
+@@ -5593,6 +5787,13 @@
          case D3D12_INDIRECT_ARGUMENT_TYPE_DRAW: kind = leonida::IndirectKind::draw; break;
          case D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED: kind = leonida::IndirectKind::draw_indexed; break;
          case D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH: kind = leonida::IndirectKind::dispatch; break;
@@ -512,7 +510,7 @@ index ec75951..ebf072a 100644
          default: return E_NOTIMPL;
          }
          return create_command_signature(kind, desc->ByteStride, riid, out, identity());
-@@ -7804,41 +8005,45 @@ private:
+@@ -7876,41 +8077,45 @@
              desc.Height > max_extent || desc.DepthOrArraySize > max_layers || !samples || samples > D3D12_MAX_MULTISAMPLE_SAMPLE_COUNT ||
              (samples & (samples - 1)) || (samples > 1 && desc.SampleDesc.Quality != 0) ||
              desc.Layout == D3D12_TEXTURE_LAYOUT_ROW_MAJOR)
@@ -568,7 +566,7 @@ index ec75951..ebf072a 100644
              return {UINT64(tiling.total_tiles) * leonida::tile_size_in_bytes, align_64k};
          }
  
-@@ -7850,12 +8055,12 @@ private:
+@@ -7922,12 +8127,12 @@
          UINT64 alignment = 0;
          if (samples > 1) {
              if (desc.Alignment && desc.Alignment != align_msaa_64k && desc.Alignment != align_msaa_4m)
@@ -584,7 +582,7 @@ index ec75951..ebf072a 100644
              alignment = desc.Alignment ? desc.Alignment : align_64k;
          }
          return {align_up(need.size, alignment), alignment};
-@@ -8307,11 +8512,13 @@ const RootArgumentLayout* root_signature_layout(ID3D12RootSignature* signature)
+@@ -8380,11 +8585,13 @@
  }
  
  std::uintptr_t compute_pipeline_id(ID3D12PipelineState* pipeline) {
@@ -598,11 +596,10 @@ index ec75951..ebf072a 100644
      const PipelineState* p = PipelineState::from<PipelineState>(pipeline);
      return p && p->graphics() ? p->id() : 0;
  }
-diff --git a/runtime/shims/d3d12_xs.cpp b/runtime/shims/d3d12_xs.cpp
-index cf3cdfa..47c2417 100644
---- a/runtime/shims/d3d12_xs.cpp
-+++ b/runtime/shims/d3d12_xs.cpp
-@@ -157,6 +157,14 @@ HRESULT WINAPI D3D12XboxCreateDevice(IUnknown* adapter, const void* params, cons
+diff -ruN a/runtime/shims/d3d12_xs.cpp src/runtime/shims/d3d12_xs.cpp
+--- a/runtime/shims/d3d12_xs.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/shims/d3d12_xs.cpp	2026-11-23 19:14:58.055333100 -0300
+@@ -157,6 +157,14 @@
                       "(slot 62 -> CreateComputePipelineState, slot 76 -> CreateCommittedResource).\n");
      }
  
@@ -617,7 +614,7 @@ index cf3cdfa..47c2417 100644
  #ifdef LEONIDA_VULKAN_DEVICE
      // Opt-in until the Vulkan device covers the first frame: LEONIDA_D3D12=vulkan puts the Vulkan-backed device
      // behind the same proxy instead of the host's D3D12 device.
-@@ -171,7 +179,7 @@ HRESULT WINAPI D3D12XboxCreateDevice(IUnknown* adapter, const void* params, cons
+@@ -171,7 +179,7 @@
                           static_cast<unsigned long>(vhr));
              return result(method, vhr);
          }
@@ -626,7 +623,7 @@ index cf3cdfa..47c2417 100644
          if (FAILED(vhr)) {
              vulkan->Release();
              std::fprintf(stderr, "[rt] d3d12_xs: D3D12XboxCreateDevice: proxy over the Vulkan device failed "
-@@ -199,7 +207,7 @@ HRESULT WINAPI D3D12XboxCreateDevice(IUnknown* adapter, const void* params, cons
+@@ -199,7 +207,7 @@
          return result(method, FAILED(hr) ? hr : E_FAIL);
      }
  
@@ -635,7 +632,7 @@ index cf3cdfa..47c2417 100644
      if (FAILED(hr)) {
          // create_device_proxy keeps the caller's reference on failure.
          real->Release();
-@@ -219,10 +227,50 @@ static_assert(std::is_same_v<decltype(&serialize_root_signature_legacy), LegacyS
+@@ -224,6 +232,43 @@
  
  }  // namespace
  
@@ -679,17 +676,9 @@ index cf3cdfa..47c2417 100644
  SHIM_TABLE(d3d12_xs,
      {"d3d12_xs.dll", "D3D12SerializeVersionedRootSignature", reinterpret_cast<void*>(&serialize_root_signature)},
      {"d3d12_xs.dll", "D3D12SerializeRootSignature", reinterpret_cast<void*>(&serialize_root_signature_legacy)},
-     {"d3d12_xs.dll", "D3D12CreateRootSignatureDeserializer",
-      reinterpret_cast<void*>(&create_root_signature_deserializer)},
-     {"d3d12_xs.dll", "D3D12XboxCreateDevice", reinterpret_cast<void*>(&D3D12XboxCreateDevice)},
-+    {"d3d12_xs.dll", "D3D12ConfigureVirtualMemoryX", reinterpret_cast<void*>(&D3D12ConfigureVirtualMemoryX)},
-+    {"xg_xs.dll", "XGCreateTextureComputer", reinterpret_cast<void*>(&XGCreateTextureComputer)},
-+    {"xg_xs.dll", "XGSuggestSwizzleMode", reinterpret_cast<void*>(&XGSuggestSwizzleMode)},
- );
-diff --git a/runtime/shims/d3d12_xs_device.cpp b/runtime/shims/d3d12_xs_device.cpp
-index e17a803..9f54d79 100644
---- a/runtime/shims/d3d12_xs_device.cpp
-+++ b/runtime/shims/d3d12_xs_device.cpp
+diff -ruN a/runtime/shims/d3d12_xs_device.cpp src/runtime/shims/d3d12_xs_device.cpp
+--- a/runtime/shims/d3d12_xs_device.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/shims/d3d12_xs_device.cpp	2026-11-23 18:23:19.652825700 -0300
 @@ -26,9 +26,18 @@
  #include "d3d12_trace.h"
  #include "../src/shader_library.h"  // leonida::fspx_payload_from_parts for slot 67
@@ -727,7 +716,7 @@ index e17a803..9f54d79 100644
  static_assert(kMaxSlots > 83, "the proxy table must cover ID3D12Device14 (83 slots)");
  static_assert(sizeof(void*) == 8, "the Xbox-ABI proxy is x64-only");
  static_assert(sizeof(D3D12_CPU_DESCRIPTOR_HANDLE) == 8,
-@@ -57,6 +68,19 @@ struct DeviceProxy {
+@@ -57,6 +68,19 @@
      void** real_vtable;
      unsigned slot_count;    // number of valid entries in real_vtable
      std::atomic<unsigned long> refs;
@@ -747,7 +736,7 @@ index e17a803..9f54d79 100644
      // The device's IDXGIDevice1 (see "IDXGIDevice1 on the device" below): a title's IDXGIDevice1* points here.
      void** dxgi_vtable;
      DxgiAdapterProvider adapter_provider;
-@@ -71,6 +95,10 @@ struct DeviceProxy {
+@@ -71,6 +95,10 @@
      std::atomic<std::uint64_t> frame_next_token{1};
  };
  
@@ -758,7 +747,7 @@ index e17a803..9f54d79 100644
  constexpr unsigned kHeapSlots = 11;  // IUnknown + ID3D12Object + DeviceChild + Pageable + GetDesc + 2 handles
  
  struct HeapProxy {
-@@ -139,6 +167,7 @@ const char* slot_name(unsigned slot) {
+@@ -139,6 +167,7 @@
          case 46: return "SetResidencyPriority (proxies unwrapped)";
          case 48: return "Xbox CreateCommandQueueX -> queue proxy";
          case 50: return "EnqueueMakeResident (proxies unwrapped)";
@@ -766,7 +755,7 @@ index e17a803..9f54d79 100644
          case 62: return "Xbox CreateComputePipelineState";
          case 67: return "Xbox DeserializeComputePipelineStateX";
          case 73: return "Xbox CreateCommandListX -> PC CreateCommandList";
-@@ -271,6 +300,8 @@ unsigned long proxy_release(DeviceProxy* self) {
+@@ -271,6 +300,8 @@
      note_slot(2);
      const unsigned long refs = self->refs.fetch_sub(1, std::memory_order_acq_rel) - 1;
      if (refs == 0) {
@@ -775,7 +764,7 @@ index e17a803..9f54d79 100644
          ID3D12Device* real = self->real;
          delete self;
          if (real) real->Release();
-@@ -620,10 +651,16 @@ HRESULT create_heap_proxy(ID3D12DescriptorHeap* real, DeviceProxy* device, REFII
+@@ -620,10 +651,16 @@
  //
  // Device slots 8 (CreateCommandQueue), 75 (CreateCommandQueue1), 36 (CreateFence) and 32 (OpenSharedHandle, for a
  // fence) wrap what they create, so a title never holds a PC or Vulkan-layer queue or fence. The proxies forward
@@ -796,7 +785,7 @@ index e17a803..9f54d79 100644
  //
  // Slot numbers are those of the Windows SDK 10.0.26100 d3d12.h: ID3D12CommandQueue has 19, ID3D12Fence 11 and
  // ID3D12Fence1 12. That the console keeps these public slots, and keeps device slots 8/32/36/75, is an assumption
-@@ -641,11 +678,10 @@ HRESULT create_heap_proxy(ID3D12DescriptorHeap* real, DeviceProxy* device, REFII
+@@ -641,11 +678,10 @@
  // passed there: queue Signal/Wait (14/15) take a fence; device CreateSharedHandle (31) a device child,
  // MakeResident/Evict (34/35), SetResidencyPriority (46) and EnqueueMakeResident (50) pageables, and
  // SetEventOnMultipleFenceCompletion (45) and EnqueueMakeResident fences. The heap proxies of slot 14 are pageables
@@ -812,7 +801,7 @@ index e17a803..9f54d79 100644
  //
  // QueryInterface answers only the interfaces the proxy models (the base chain and its own interface, Fence1 when
  // the real fence has it), like the device and heap proxies, so the COM identity holds and no real object leaks to
-@@ -659,6 +695,10 @@ HRESULT create_heap_proxy(ID3D12DescriptorHeap* real, DeviceProxy* device, REFII
+@@ -659,6 +695,10 @@
  
  enum class ChildKind { queue, fence, allocator };
  
@@ -823,7 +812,7 @@ index e17a803..9f54d79 100644
  constexpr unsigned kQueueSlots = 128;        // the table: 19 public slots plus a refused tail
  constexpr unsigned kFenceSlots = 64;         // the table: 12 public slots plus a refused tail
  constexpr unsigned kQueuePublicSlots = 19;   // ID3D12CommandQueue
-@@ -683,7 +723,52 @@ struct ChildProxy {
+@@ -683,7 +723,52 @@
      void** real_vtable;
      unsigned slot_count;    // public slots the real object implements; the rest of the table is refused
      std::atomic<unsigned long> refs;
@@ -876,7 +865,7 @@ index e17a803..9f54d79 100644
  
  template <ChildKind K>
  struct ChildStats {
-@@ -876,6 +961,10 @@ HRESULT child_get_device(ChildProxy* self, const IID* riid, void** out) {
+@@ -876,6 +961,10 @@
  template <ChildKind K>
  void** get_child_vtable();
  
@@ -887,7 +876,7 @@ index e17a803..9f54d79 100644
  template <ChildKind K>
  bool is_child_proxy(const void* object) {
      return object && *reinterpret_cast<void* const*>(object) == reinterpret_cast<void*>(get_child_vtable<K>());
-@@ -890,6 +979,7 @@ IUnknown* proxy_real_object(const void* object) {
+@@ -890,6 +979,7 @@
          vtable == reinterpret_cast<void*>(get_child_vtable<ChildKind::fence>()) ||
          vtable == reinterpret_cast<void*>(get_child_vtable<ChildKind::allocator>()))
          return static_cast<const ChildProxy*>(object)->real;
@@ -895,7 +884,7 @@ index e17a803..9f54d79 100644
      return nullptr;
  }
  
-@@ -970,6 +1060,91 @@ LONG CALLBACK table_overrun_handler(EXCEPTION_POINTERS* info) {
+@@ -970,6 +1060,91 @@
      return EXCEPTION_CONTINUE_SEARCH;  // diagnostics only: the fault goes on to the title's handlers or the crash
  }
  
@@ -987,7 +976,7 @@ index e17a803..9f54d79 100644
  template <ChildKind K, unsigned Slot>
  std::uint64_t WINAPI child_slot(ChildProxy* self, std::uint64_t a1, std::uint64_t a2, std::uint64_t a3,
                                  std::uint64_t a4, std::uint64_t a5, std::uint64_t a6, std::uint64_t a7,
-@@ -989,6 +1164,107 @@ std::uint64_t WINAPI child_slot(ChildProxy* self, std::uint64_t a1, std::uint64_
+@@ -989,6 +1164,107 @@
                                               reinterpret_cast<void**>(a2)));
      } else {
          note_child_slot<K>(Slot);
@@ -1095,7 +1084,7 @@ index e17a803..9f54d79 100644
          if (Slot >= self->slot_count) {
              bool expected = false;
              if (ChildStats<K>::beyond_warned[Slot].compare_exchange_strong(expected, true,
-@@ -1006,6 +1282,14 @@ std::uint64_t WINAPI child_slot(ChildProxy* self, std::uint64_t a1, std::uint64_
+@@ -1006,6 +1282,14 @@
          d3d12_trace::record(child_trace_name<K>(Slot));  // "called": the real object's result is not inspected
          if constexpr (K == ChildKind::queue && (Slot == kQueueSignal || Slot == kQueueWait)) a1 = unwrap_object(a1);
  
@@ -1110,7 +1099,7 @@ index e17a803..9f54d79 100644
          // The PC vtable entry with the real object as `this`; integer/pointer arguments, the hidden struct-return
          // pointer and stack arguments keep their positions, as in the device proxy.
          using ForwardFn = std::uint64_t(WINAPI*)(void*, std::uint64_t, std::uint64_t, std::uint64_t,
-@@ -1107,6 +1391,513 @@ HRESULT wrap_child(IUnknown* created, DeviceProxy* device, const IID* riid, void
+@@ -1107,6 +1391,513 @@
      return S_OK;
  }
  
@@ -1624,7 +1613,7 @@ index e17a803..9f54d79 100644
  // Calls the real device's slot `Slot` with these five words in the positions the thunk received them (see "A thunk
  // declares 14 argument words" at the top: no word may move to another stack position on the way).
  template <unsigned Slot>
-@@ -1171,8 +1962,23 @@ HRESULT proxy_schedule_frame_event_x(DeviceProxy* self, std::uint64_t event, std
+@@ -1171,8 +1962,23 @@
  // Xbox device slot 80 (public HLE): WaitFrameEventX(event, timeout_ms, pEvent, flags, &token). It returns at once with
  // a fresh non-zero token (the first-frame choice): there is no vblank source behind the device before a presenter, and
  // a zero wait cannot stall the title. A null token pointer is E_POINTER, as a _Out_ parameter.
@@ -1648,7 +1637,7 @@ index e17a803..9f54d79 100644
      (void)event;
      (void)timeout_ms;
      (void)flags;
-@@ -1212,7 +2018,14 @@ HRESULT proxy_create_command_list_x(DeviceProxy* self, std::uint64_t desc_word,
+@@ -1212,7 +2018,14 @@
      auto* allocator = allocator_proxy_real_allocator(reinterpret_cast<void*>(allocator_word));
      if (!allocator) allocator = reinterpret_cast<ID3D12CommandAllocator*>(allocator_word);
      auto* initial_state = reinterpret_cast<ID3D12PipelineState*>(initial_state_word);
@@ -1664,7 +1653,7 @@ index e17a803..9f54d79 100644
  }
  
  // Device slot 75: ID3D12Device9::CreateCommandQueue1(desc, creator_id, riid, out), called by slot index.
-@@ -1334,6 +2147,56 @@ HRESULT proxy_unwrapping_call(DeviceProxy* self, std::uint64_t a1, std::uint64_t
+@@ -1334,6 +2147,56 @@
      return static_cast<HRESULT>(static_cast<std::uint32_t>(forward_device<Slot>(self, r1, r2, r3, r4, a5)));
  }
  
@@ -1721,7 +1710,7 @@ index e17a803..9f54d79 100644
  HRESULT proxy_create_descriptor_heap(DeviceProxy* self, const D3D12_DESCRIPTOR_HEAP_DESC* desc, const IID* riid,
                                       void** out) {
      note_slot(14);
-@@ -1342,8 +2205,27 @@ HRESULT proxy_create_descriptor_heap(DeviceProxy* self, const D3D12_DESCRIPTOR_H
+@@ -1342,8 +2205,27 @@
      // No output: a capability check, answered by the device (S_FALSE, as on the PC).
      if (!out) return self->real->CreateDescriptorHeap(desc, *riid, nullptr);
  
@@ -1749,7 +1738,7 @@ index e17a803..9f54d79 100644
      if (FAILED(hr) || !created) return FAILED(hr) ? hr : E_FAIL;
  
      ID3D12DescriptorHeap* heap = static_cast<ID3D12DescriptorHeap*>(created);
-@@ -1440,6 +2322,7 @@ HRESULT proxy_create_compute_pipeline_from_native_code(DeviceProxy* self, const
+@@ -1440,6 +2322,7 @@
      static std::atomic<std::uint64_t> calls{0};
      const std::uint64_t call = calls.fetch_add(1, std::memory_order_relaxed) + 1;
      const HRESULT hr = self->real->CreateComputePipelineState(&pc_desc, *riid, out);
@@ -1757,7 +1746,7 @@ index e17a803..9f54d79 100644
      if (FAILED(hr))
          std::fprintf(stderr,
                       "[rt] d3d12_xs: slot 67 call %llu failed with 0x%08lx (kind 0 %llu B, kind 1 %llu B, kind 6 %llu B, "
-@@ -1452,6 +2335,25 @@ HRESULT proxy_create_compute_pipeline_from_native_code(DeviceProxy* self, const
+@@ -1452,6 +2335,25 @@
      return hr;
  }
  
@@ -1783,7 +1772,7 @@ index e17a803..9f54d79 100644
  HRESULT proxy_create_resource(DeviceProxy* self, const D3D12_HEAP_PROPERTIES* heap_properties,
                                D3D12_HEAP_FLAGS heap_flags, const D3D12_RESOURCE_DESC* xbox_desc,
                                D3D12_RESOURCE_STATES initial_state, const D3D12_CLEAR_VALUE* clear_value,
-@@ -1469,6 +2371,9 @@ HRESULT proxy_create_resource(DeviceProxy* self, const D3D12_HEAP_PROPERTIES* he
+@@ -1469,6 +2371,9 @@
      const auto xbox_layout = static_cast<std::uint32_t>(pc_desc.Layout);
      pc_desc.Layout = pc_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER ? D3D12_TEXTURE_LAYOUT_ROW_MAJOR
                                                                           : D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -1793,7 +1782,7 @@ index e17a803..9f54d79 100644
  
      static std::atomic<bool> logged{false};
      if (!logged.exchange(true, std::memory_order_relaxed)) {
-@@ -1476,10 +2381,139 @@ HRESULT proxy_create_resource(DeviceProxy* self, const D3D12_HEAP_PROPERTIES* he
+@@ -1476,10 +2381,139 @@
                       "[rt] d3d12_xs: slot 76 resource: dimension=%d xbox layout=0x%x -> PC layout=0x%x\n",
                       static_cast<int>(pc_desc.Dimension), xbox_layout, static_cast<unsigned>(pc_desc.Layout));
      }
@@ -1933,7 +1922,7 @@ index e17a803..9f54d79 100644
  template <unsigned Slot>
  std::uint64_t WINAPI proxy_slot(DeviceProxy* self, std::uint64_t a1, std::uint64_t a2, std::uint64_t a3,
                                  std::uint64_t a4, std::uint64_t a5, std::uint64_t a6, std::uint64_t a7,
-@@ -1498,6 +2532,93 @@ std::uint64_t WINAPI proxy_slot(DeviceProxy* self, std::uint64_t a1, std::uint64
+@@ -1498,6 +2532,93 @@
      } else if constexpr (Slot == 9) {
          return hr_to_u64(proxy_create_command_allocator(self, a1, reinterpret_cast<const IID*>(a2),
                                                          reinterpret_cast<void**>(a3)));
@@ -2027,7 +2016,7 @@ index e17a803..9f54d79 100644
      } else if constexpr (Slot == 36) {
          return hr_to_u64(proxy_create_fence(self, a1, a2, reinterpret_cast<const IID*>(a3),
                                              reinterpret_cast<void**>(a4)));
-@@ -1549,8 +2670,15 @@ std::uint64_t WINAPI proxy_slot(DeviceProxy* self, std::uint64_t a1, std::uint64
+@@ -1549,8 +2670,15 @@
          }
          if (Slot == routes.queue_x) {
              log_xbox_route_once(Slot, "CreateCommandQueueX", a1, a2, a3, a4, a5);
@@ -2045,7 +2034,7 @@ index e17a803..9f54d79 100644
                                                          reinterpret_cast<void**>(a3)));
          }
          if (Slot == routes.list_x) {
-@@ -1627,7 +2755,7 @@ unsigned detect_slot_count(ID3D12Device* real) {
+@@ -1627,7 +2755,7 @@
  
  }  // namespace
  
@@ -2054,7 +2043,7 @@ index e17a803..9f54d79 100644
      if (!real) return E_POINTER;
      if (!out) return E_POINTER;
      *out = nullptr;
-@@ -1638,6 +2766,7 @@ HRESULT create_device_proxy(ID3D12Device* real, REFIID riid, void** out) {
+@@ -1638,6 +2766,7 @@
      proxy->real = real;
      proxy->real_vtable = *reinterpret_cast<void***>(real);
      proxy->slot_count = detect_slot_count(real);
@@ -2062,7 +2051,7 @@ index e17a803..9f54d79 100644
      proxy->refs.store(1, std::memory_order_relaxed);
      proxy->dxgi_vtable = get_dxgi_vtable();
      proxy->adapter_provider = nullptr;
-@@ -1704,9 +2833,9 @@ ID3D12Device* device_proxy_real_device(const void* device) {
+@@ -1704,9 +2833,9 @@
  }
  
  bool device_slot_overridden(unsigned slot) {
@@ -2075,7 +2064,7 @@ index e17a803..9f54d79 100644
          return true;
      const XboxDeviceSlotRoutes& routes = xbox_device_slot_routes();
      return slot == routes.frame_interval || slot == routes.schedule_event || slot == routes.wait_event ||
-@@ -1714,6 +2843,20 @@ bool device_slot_overridden(unsigned slot) {
+@@ -1714,6 +2843,20 @@
  }
  
  bool is_queue_proxy(const void* queue) { return is_child_proxy<ChildKind::queue>(queue); }
@@ -2096,10 +2085,9 @@ index e17a803..9f54d79 100644
  bool is_fence_proxy(const void* fence) { return is_child_proxy<ChildKind::fence>(fence); }
  bool is_allocator_proxy(const void* allocator) { return is_child_proxy<ChildKind::allocator>(allocator); }
  
-diff --git a/runtime/shims/d3d12_xs_device.h b/runtime/shims/d3d12_xs_device.h
-index 0019ec5..fcf838f 100644
---- a/runtime/shims/d3d12_xs_device.h
-+++ b/runtime/shims/d3d12_xs_device.h
+diff -ruN a/runtime/shims/d3d12_xs_device.h src/runtime/shims/d3d12_xs_device.h
+--- a/runtime/shims/d3d12_xs_device.h	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/shims/d3d12_xs_device.h	2026-11-23 12:59:15.303556100 -0300
 @@ -36,14 +36,23 @@
  // Command queues and fences (device slots 8, 75, 36, and 32 for a shared fence) come back wrapped in queue and fence
  // proxies of the same kind: the public chain (19 queue slots, 11 or 12 fence slots in SDK 10.0.26100) is forwarded
@@ -2129,7 +2117,7 @@ index 0019ec5..fcf838f 100644
  // modelled interfaces; one the real object has but the proxy does not model is logged once and refused.
  #pragma once
  
-@@ -56,7 +65,10 @@ namespace rt::d3d12_xs {
+@@ -56,7 +65,10 @@
  // Wraps `real` and returns the requested device interface through `out`. Takes ownership of one reference to
  // `real` on success; on failure the caller keeps its reference. Returns E_NOINTERFACE if `riid` is not a D3D12
  // device interface the PC device implements.
@@ -2141,7 +2129,7 @@ index 0019ec5..fcf838f 100644
  
  // True when `device` points at a proxy created by create_device_proxy. Used by the tests.
  bool is_device_proxy(const void* device);
-@@ -132,6 +144,20 @@ bool command_object_tables_guarded();
+@@ -132,6 +144,20 @@
  inline constexpr GUID kLeonidaCommandAllocatorTag{
      0x7d0e6b51, 0x34a2, 0x4f0c, {0x9a, 0x61, 0x0c, 0x5b, 0x2e, 0x8f, 0x4a, 0x10}};
  bool is_allocator_proxy(const void* allocator);
@@ -2162,11 +2150,9 @@ index 0019ec5..fcf838f 100644
  // The wrapped allocator (no reference added), or null when `allocator` is not an allocator proxy.
  ID3D12CommandAllocator* allocator_proxy_real_allocator(const void* allocator);
  unsigned allocator_proxy_slot_count(const void* allocator);
-diff --git a/runtime/shims/dstorage.cpp b/runtime/shims/dstorage.cpp
-new file mode 100644
-index 0000000..1e7ff25
---- /dev/null
-+++ b/runtime/shims/dstorage.cpp
+diff -ruN a/runtime/shims/dstorage.cpp src/runtime/shims/dstorage.cpp
+--- a/runtime/shims/dstorage.cpp	1969-12-31 21:00:00.000000000 -0300
++++ b/runtime/shims/dstorage.cpp	2026-11-23 18:26:50.683308100 -0300
 @@ -0,0 +1,1095 @@
 +// Xbox DirectStorage for a mapped title: DStorageGetFactory and the IDStorageFactoryX2 / IDStorageQueueX2 /
 +// IDStorageFileX / IDStorageStatusArrayX objects of the console API (dstorage_xs_abi.h).
@@ -3263,11 +3249,9 @@ index 0000000..1e7ff25
 +extern "C" long gta6rt_dstorage_pending() { return g_ds_pending.load(std::memory_order_relaxed); }
 +
 +extern "C" long gta6rt_dstorage_total() { return g_ds_total.load(std::memory_order_relaxed); }
-diff --git a/runtime/shims/dstorage_xs_abi.h b/runtime/shims/dstorage_xs_abi.h
-new file mode 100644
-index 0000000..854f8db
---- /dev/null
-+++ b/runtime/shims/dstorage_xs_abi.h
+diff -ruN a/runtime/shims/dstorage_xs_abi.h src/runtime/shims/dstorage_xs_abi.h
+--- a/runtime/shims/dstorage_xs_abi.h	1969-12-31 21:00:00.000000000 -0300
++++ b/runtime/shims/dstorage_xs_abi.h	2026-11-23 12:59:33.377063400 -0300
 @@ -0,0 +1,378 @@
 +// Xbox DirectStorage ABI: the console API (dstorage_xs.h on the console) a title calls through DStorageGetFactory.
 +//
@@ -3647,11 +3631,10 @@ index 0000000..854f8db
 +};
 +
 +}  // namespace dsx
-diff --git a/runtime/shims/file_system.cpp b/runtime/shims/file_system.cpp
-index 1eaf0bd..7a4485b 100644
---- a/runtime/shims/file_system.cpp
-+++ b/runtime/shims/file_system.cpp
-@@ -667,6 +667,16 @@ HANDLE WINAPI create_file_w(LPCWSTR name, DWORD access, DWORD share, LPSECURITY_
+diff -ruN a/runtime/shims/file_system.cpp src/runtime/shims/file_system.cpp
+--- a/runtime/shims/file_system.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/shims/file_system.cpp	2026-11-23 19:14:31.313063200 -0300
+@@ -671,6 +671,16 @@
          const DWORD error = GetLastError();
          note_open_failure("CreateFileW", name, error, _ReturnAddress());
          SetLastError(error);
@@ -3668,10 +3651,9 @@ index 1eaf0bd..7a4485b 100644
      }
      return h;
  }
-diff --git a/runtime/shims/library_loader.cpp b/runtime/shims/library_loader.cpp
-index 2fa04c7..13a193e 100644
---- a/runtime/shims/library_loader.cpp
-+++ b/runtime/shims/library_loader.cpp
+diff -ruN a/runtime/shims/library_loader.cpp src/runtime/shims/library_loader.cpp
+--- a/runtime/shims/library_loader.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/shims/library_loader.cpp	2026-11-23 19:14:31.352071500 -0300
 @@ -2,9 +2,10 @@
  //
  // GDK code does not always import the console runtime. The package's libHttpClient.GDK.dll and XCurl.dll have no
@@ -3686,11 +3668,10 @@ index 2fa04c7..13a193e 100644
  //
  // So for a module the shim registry owns (rt::shims::owns_dll: xgameruntime.dll, d3d12_xs.dll, xmem.dll, ...), these
  // return a pseudo-handle, and GetProcAddress on it resolves names (and "#ordinal") through rt::shims::find. A name the
-diff --git a/runtime/shims/registry.cpp b/runtime/shims/registry.cpp
-index 37ff540..0476454 100644
---- a/runtime/shims/registry.cpp
-+++ b/runtime/shims/registry.cpp
-@@ -80,7 +80,10 @@ std::vector<Lookup> g_lookups;
+diff -ruN a/runtime/shims/registry.cpp src/runtime/shims/registry.cpp
+--- a/runtime/shims/registry.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/shims/registry.cpp	2026-11-23 19:14:31.394081400 -0300
+@@ -80,7 +80,10 @@
  //  xaudio2_9.dll             XAudio2Create: HRESULT (learn.microsoft.com/windows/win32/api/xaudio2/
  //  xaudio2_9redist.dll       nf-xaudio2-xaudio2create). xaudio2_9.dll is the console name (docs/d3d12_vulkan.md §7).
  //  dstorage.dll              DStorageGetFactory: HRESULT (learn.microsoft.com/windows/win32/api/dstorage/
@@ -3702,7 +3683,7 @@ index 37ff540..0476454 100644
  const char* const kNotHResult[] = {
      "XAsyncCancel", "XAsyncComplete",
      "XTaskQueueCloseHandle", "XTaskQueueDispatch", "XTaskQueueGetCurrentProcessTaskQueue",
-@@ -111,7 +114,7 @@ ReturnClass classify(const std::string& dll, const std::string& name) {
+@@ -111,7 +114,7 @@
          if (name == "XAudio2Create") return ReturnClass::HResult;
      } else if (dll == "gameinput.dll") {
          if (name == "GameInputCreate") return ReturnClass::HResult;
@@ -3711,11 +3692,38 @@ index 37ff540..0476454 100644
          if (name == "DStorageGetFactory") return ReturnClass::HResult;
      } else if (dll == "xgameruntime.dll") {
          if (name == "XGameRuntimeInitialize" || name == "XGameEventWrite") return ReturnClass::HResult;
-diff --git a/runtime/shims/xgameruntime.cpp b/runtime/shims/xgameruntime.cpp
-index e0c13c5..b8f26d7 100644
---- a/runtime/shims/xgameruntime.cpp
-+++ b/runtime/shims/xgameruntime.cpp
-@@ -62,6 +62,8 @@ std::atomic<int> g_runtime_refs{0};
+diff -ruN a/runtime/shims/xg_xs.cpp src/runtime/shims/xg_xs.cpp
+--- a/runtime/shims/xg_xs.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/shims/xg_xs.cpp	2026-11-23 19:15:06.493608400 -0300
+@@ -56,7 +56,7 @@
+ HRESULT __stdcall computer_slot(void*) {
+     static std::atomic<bool> warned{false};
+     warn_once(warned, "texture computer slot ", static_cast<int>(Slot), _ReturnAddress());
+-    return kNotImpl;
++    return S_OK;  // Rev6: the title ignores these results; a failure here made it take its error paths
+ }
+ 
+ template <size_t... Slot>
+@@ -78,13 +78,13 @@
+     warn_once(warned, "XGCreateTextureComputer", -1, _ReturnAddress());
+     if (!out) return E_POINTER;
+     *out = &g_computer;  // see the top of the file: two measured callers use *out without checking the HRESULT
+-    return kNotImpl;
++    return S_OK;  // Rev6: callers that test the HRESULT abort on a failure
+ }
+ 
+ HRESULT __stdcall XGSuggestSwizzleMode(const void* /*desc*/, uint32_t /*flags*/, uint32_t* /*mode*/) {
+     static std::atomic<bool> warned{false};
+     warn_once(warned, "XGSuggestSwizzleMode", -1, _ReturnAddress());
+-    return kNotImpl;
++    return S_OK;
+ }
+ 
+ }  // namespace
+diff -ruN a/runtime/shims/xgameruntime.cpp src/runtime/shims/xgameruntime.cpp
+--- a/runtime/shims/xgameruntime.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/shims/xgameruntime.cpp	2026-11-23 19:16:08.427737600 -0300
+@@ -62,6 +62,8 @@
  // (no caller in the shipped DLLs to measure), and the classes of the other xgameruntime_*.cpp files through their
  // query functions; for any other class QueryApiImpl logs the class and interface id and refuses it, so the first boot
  // with the executable lists the interfaces to implement next.
@@ -3724,7 +3732,18 @@ index e0c13c5..b8f26d7 100644
  
  struct ApiImplOptions {    // InitializeApiImplEx2's fourth argument
      uint32_t unknown;      // documented as always 1
-@@ -647,6 +649,13 @@ HRESULT WINAPI GetApiVersionImpl(uint64_t* first, uint64_t* second) {
+@@ -249,10 +251,6 @@
+     return S_OK;
+ }
+ 
+-// The same function as a DLL export: xgameruntime.lib's XGameRuntimeInitialize looks up "XErrorReport" with
+-// GetProcAddress next to QueryApiImpl, the InitializeApiImpl* and UninitializeApiImpl, and refuses to initialise when it
+-// is missing (retail executable: the lookup at +0x55e2b7e, the null check at +0x55e2c08, then an int3 at +0x5a91c21).
+-HRESULT WINAPI XErrorReport(HRESULT hr, const char* message) { return error_report(nullptr, hr, message); }
+ void STDMETHODCALLTYPE error_set_callback(void*, XErrorCallback callback, void* context) {
+     std::lock_guard<std::mutex> lock(g_error_mutex);
+     g_error_context = context;
+@@ -652,6 +650,13 @@
      return S_OK;
  }
  
@@ -3738,53 +3757,903 @@ index e0c13c5..b8f26d7 100644
  // HRESULT XGameRuntimeInitialize(). Reference counted, as in the GDK: each call needs an XGameRuntimeUninitialize.
  HRESULT __stdcall XGameRuntimeInitialize() {
      if (g_runtime_refs.fetch_add(1) == 0) std::fprintf(stderr, "[rt] xgameruntime: initialized (offline)\n");
-@@ -1324,6 +1333,7 @@ SHIM_TABLE(xgameruntime,
-     XGR(InitializeApiImplEx2),
-     XGR(UninitializeApiImpl),
-     XGR(QueryApiImpl),
-+    XGR(XErrorReport),  // looked up with the five above; without it the thunks refuse the runtime
-     // the same runtime through gameplatformservices.dll, which XCurl.dll loads from System32 (GetApiVersionImpl above)
-     {"gameplatformservices.dll", "QueryApiImpl", reinterpret_cast<void*>(&QueryApiImpl)},
-     {"gameplatformservices.dll", "GetApiVersionImpl", reinterpret_cast<void*>(&GetApiVersionImpl)},
-diff --git a/runtime/shims/xmem.cpp b/runtime/shims/xmem.cpp
-index a1061af..7f03d3f 100644
---- a/runtime/shims/xmem.cpp
-+++ b/runtime/shims/xmem.cpp
-@@ -21,8 +21,11 @@
- #include <limits>
- #include <mutex>
- #include <set>
+diff -ruN a/runtime/shims/xmem.cpp src/runtime/shims/xmem.cpp
+--- a/runtime/shims/xmem.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/shims/xmem.cpp	2026-11-23 19:14:57.945801700 -0300
+@@ -1,728 +1,612 @@
+-// xmem.dll: the GDK's tracked allocator. Mapped onto the CRT's aligned heap and VirtualQueryEx.
+-//
+-// The measured ABI (docs from the clean-room spec) shows four imports:
+-//   XMemAlloc(size, attributes)
+-//   XMemFree(ptr, attributes)
+-//   XMemVirtualQuery(process, address, out64)
+-//   XMemGetWorkingSetStatistics(kind, out)   (kind 0x20000001 at all seven FSR call sites)
+-//
+-// ASSUMPTION: the attribute word is not decoded by the measured call sites (one passes 0x5e50000). Until a call
+-// site shows the alignment/type fields, every block is 64-byte aligned (covers cache lines and SIMD) and a size of
+-// zero is rounded up to one byte so the result is a stable, non-null pointer that XMemFree can release.
+-//
+-// The default allocators, the physical-page functions and XMemIsToolsMemAvailable follow argument shapes measured
+-// locally at a title's call sites (each function says which). The page functions are built on the Windows placeholder
+-// APIs (VirtualAlloc2, MapViewOfFile3), whose flags the title's own XMemVirtualAlloc calls already use.
+-#include <windows.h>
+-#include <intrin.h>
+-#include <malloc.h>
+-#include <psapi.h>
+-
+-#include <atomic>
+-#include <cstdint>
+-#include <cstdio>
+-#include <cstring>
+-#include <iterator>
+-#include <limits>
+-#include <map>
+-#include <memory>
+-#include <mutex>
+-#include <set>
+-#include <string>
+-#include <unordered_map>
+-#include <utility>
+-#include <vector>
+-
+-#include "shims.h"
+-#include "startup_trace.h"
+-
+-namespace {
+-
+-constexpr size_t kAlign = 64;
+-constexpr size_t kNoSize = static_cast<size_t>(-1);  // XMemFree has no size field
+-
+-std::string caller_field(const void* caller) {
+-    return ",\"caller\":" + rt::startup_trace::quote(rt::startup_trace::where(reinterpret_cast<uint64_t>(caller)));
+-}
+-
+-// gta6rt --trace FILE: the first XMemAlloc, XMemFree, XMemAllocDefault, XMemFreeDefault and XMemVirtualAlloc call for
+-// each distinct raw attribute word go to the startup trace as an "xmem_attributes" event (api, the word, the size for an
+-// allocation, the caller as module+RVA). The bits of the attribute word are not known yet; this records them from a
+-// real run without logging every allocation, which would fill the file. Off: one relaxed load per call.
+-void note_attributes(const char* api, uint64_t attributes, size_t size, const void* caller) {
+-    if (!rt::startup_trace::enabled()) return;
+-    static std::mutex mutex;
+-    static std::set<std::pair<std::string, uint64_t>> seen;
+-    {
+-        const std::lock_guard lock(mutex);
+-        if (!seen.insert({api, attributes}).second) return;
+-    }
+-    std::string fields = std::string("\"api\":\"") + api +
+-                         "\",\"attributes\":" + rt::startup_trace::quote(rt::startup_trace::hex(attributes));
+-    if (size != kNoSize) fields += ",\"size\":" + std::to_string(size);
+-    fields += caller_field(caller);
+-    rt::startup_trace::event("xmem_attributes", fields);
+-}
+-
+-void* allocate_block(size_t size) { return _aligned_malloc(size ? size : 1, kAlign); }
+-
+-void* __stdcall XMemAlloc(size_t size, uint64_t attributes) {
+-    note_attributes("XMemAlloc", attributes, size, _ReturnAddress());
+-    return allocate_block(size);
+-}
+-
+-void __stdcall XMemFree(void* p, uint64_t attributes) {
+-    note_attributes("XMemFree", attributes, kNoSize, _ReturnAddress());
+-    _aligned_free(p);
+-}
+-
+-// XMemAllocDefault / XMemFreeDefault: the GDK's own allocator behind XMemAlloc and XMemFree, which a title that hooks
+-// XMemAlloc forwards to. The measured title reaches each through one wrapper that is a bare tail jump to the import,
+-// so they take exactly XMemAlloc's and XMemFree's arguments. They share the heap: a block from either allocator may be
+-// released by either free.
+-void* __stdcall XMemAllocDefault(size_t size, uint64_t attributes) {
+-    note_attributes("XMemAllocDefault", attributes, size, _ReturnAddress());
+-    return allocate_block(size);
+-}
+-
+-void __stdcall XMemFreeDefault(void* p, uint64_t attributes) {
+-    note_attributes("XMemFreeDefault", attributes, kNoSize, _ReturnAddress());
+-    _aligned_free(p);
+-}
+-
+-// BOOL XMemIsToolsMemAvailable(void). The measured title calls it from one helper, which six out-of-memory paths reach
+-// only after an allocation has failed; the helper breaks into the debugger when the result is zero. Tools memory is
+-// the extra memory of a development kit. A PC has none, so the answer is FALSE, and the title's own breakpoint marks
+-// where it ran out of memory.
+-BOOL WINAPI XMemIsToolsMemAvailable() {
+-    static std::atomic<bool> warned{false};
+-    if (!warned.exchange(true, std::memory_order_relaxed)) {
+-        std::fprintf(stderr, "[rt] xmem: XMemIsToolsMemAvailable -> FALSE (no devkit tools memory; logged once)\n");
+-    }
+-    return FALSE;
+-}
+-
+-// Measured call sites pass a zeroed 64-byte structure. Only the MEMORY_BASIC_INFORMATION-compatible prefix is
+-// known: callers read at least the base and size fields. Fill that prefix from VirtualQueryEx and zero the rest.
+-constexpr size_t kVirtualQueryOutSize = 64;
+-static_assert(sizeof(MEMORY_BASIC_INFORMATION) <= kVirtualQueryOutSize,
+-              "the 64-byte XMemVirtualQuery output must hold MEMORY_BASIC_INFORMATION");
+-
+-// Returns the number of bytes written (the VirtualQuery convention) or 0 on failure. The exact return type and the
+-// meaning of every output field are not fully known; callers in the package only test for success.
+-SIZE_T __stdcall XMemVirtualQuery(HANDLE process, const void* address, void* out) {
+-    if (!out) return 0;
+-    std::memset(out, 0, kVirtualQueryOutSize);
+-    if (!address) return 0;
+-
+-    static std::atomic<bool> warned{false};
+-    if (!warned.exchange(true, std::memory_order_relaxed)) {
+-        std::fprintf(stderr,
+-                     "[rt] xmem: XMemVirtualQuery: fields after MEMORY_BASIC_INFORMATION are unknown; "
+-                     "the 64-byte output is zero-filled there\n");
+-    }
+-
+-    // A null handle means the current process; GetCurrentProcess() is the (HANDLE)-1 pseudo handle.
+-    HANDLE target = process ? process : GetCurrentProcess();
+-    MEMORY_BASIC_INFORMATION info{};
+-    SIZE_T written = VirtualQueryEx(target, address, &info, sizeof(info));
+-    if (!written) return 0;
+-
+-    std::memcpy(out, &info, written < kVirtualQueryOutSize ? written : kVirtualQueryOutSize);
+-    return written;
+-}
+-
+-// BOOL XMemGetWorkingSetStatistics(UINT32 kind, XMEM_WORKING_SET_STATISTICS* stats). Measured at all seven call sites
+-// in amd_fidelityfx_upscaler_xbox.dll (1.0.2.1; calls at RVAs 0x26b3, 0x2ea1, 0x39a9, 0x7452, 0x74d2, 0x7568,
+-// 0x75b1): ECX is the constant 0x20000001 (its meaning is not known) and RDX points at a stack buffer (0x80 bytes
+-// where the frame shows it). The caller reads a 64-bit size at +8 and treats a zero return as "no data". Taking the
+-// pointer from the first argument wrote to address 0x20000001.
+-// The measured FSR sites establish argument shape, kind and the 64-bit working-set read at +8; +0's title-total memory
+-// limit interpretation is inferred from other Series implementations (xcl, xbox-emulator) and title engine telemetry
+-// sizing memory pools (RT-220). Note that if GlobalMemoryStatusEx reports 0 physical memory, XMem falls back to the
+-// 12 GiB title limit, whereas XSystemGetAppMemoryUsageLimit remains 0.
+-BOOL __stdcall XMemGetWorkingSetStatistics(uint32_t /*kind*/, void* stats) {
+-    if (!stats) {
+-        static std::atomic<bool> warned{false};
+-        if (!warned.exchange(true, std::memory_order_relaxed)) {
+-            std::fprintf(stderr, "[rt] xmem: XMemGetWorkingSetStatistics(nullptr) -> FALSE\n");
+-        }
+-        return FALSE;
+-    }
+-
+-    PROCESS_MEMORY_COUNTERS pmc{};
+-    if (!GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) return FALSE;
+-
+-    MEMORYSTATUSEX ms{sizeof(ms)};
+-    uint64_t total_memory = 12ULL * 1024 * 1024 * 1024;
+-    if (GlobalMemoryStatusEx(&ms) && ms.ullTotalPhys != 0) {
+-        total_memory = ms.ullTotalPhys;
+-    }
+-
+-    uint8_t* bytes = static_cast<uint8_t*>(stats);
+-    std::memset(bytes, 0, 16);
+-    std::memcpy(bytes + 0, &total_memory, sizeof(total_memory));
+-    uint64_t working_set = pmc.WorkingSetSize;
+-    std::memcpy(bytes + 8, &working_set, sizeof(working_set));
+-    return TRUE;
+-}
+-
+-// The placeholder APIs (Windows 10 1803 and later) come from kernelbase.dll at run time, so neither gta6rt nor the
+-// tests link onecore.lib. A host without them fails the calls that need them with ERROR_NOT_SUPPORTED.
+-using VirtualAlloc2Fn = PVOID(WINAPI*)(HANDLE, PVOID, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
+-using MapViewOfFile3Fn = PVOID(WINAPI*)(HANDLE, HANDLE, PVOID, ULONG64, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*,
+-                                        ULONG);
+-using UnmapViewOfFile2Fn = BOOL(WINAPI*)(HANDLE, PVOID, ULONG);
+-
+-struct PlaceholderApi {
+-    VirtualAlloc2Fn virtual_alloc2 = nullptr;
+-    MapViewOfFile3Fn map_view3 = nullptr;
+-    UnmapViewOfFile2Fn unmap_view2 = nullptr;
+-    bool available() const { return virtual_alloc2 && map_view3 && unmap_view2; }
+-};
+-
+-const PlaceholderApi& placeholder_api() {
+-    static const PlaceholderApi api = [] {
+-        PlaceholderApi resolved;
+-        if (const HMODULE kernelbase = GetModuleHandleW(L"kernelbase.dll")) {
+-            resolved.virtual_alloc2 = reinterpret_cast<VirtualAlloc2Fn>(GetProcAddress(kernelbase, "VirtualAlloc2"));
+-            resolved.map_view3 = reinterpret_cast<MapViewOfFile3Fn>(GetProcAddress(kernelbase, "MapViewOfFile3"));
+-            resolved.unmap_view2 =
+-                reinterpret_cast<UnmapViewOfFile2Fn>(GetProcAddress(kernelbase, "UnmapViewOfFile2"));
+-        }
+-        return resolved;
+-    }();
+-    return api;
+-}
+-
+-// XMem allocation-type page bits select the guest page granularity and must not be forwarded as Win32 flags.
+-constexpr DWORD kXmemLargePages = 0x20000000;  // 2 MiB pages
+-constexpr DWORD kXmem64kPages = 0x20400000;    // 64 KiB pages
+-constexpr DWORD kXmemPageModeMask = kXmem64kPages;
+-constexpr SIZE_T kXmemPageSize64k = 0x10000;
+-constexpr SIZE_T kXmemPageSize2m = 0x200000;
+-constexpr DWORD kXmemHostAllocationTypeMask = MEM_COMMIT | MEM_RESERVE | MEM_REPLACE_PLACEHOLDER |
+-                                              MEM_RESERVE_PLACEHOLDER | MEM_RESET | MEM_TOP_DOWN | MEM_WRITE_WATCH |
+-                                              MEM_RESET_UNDO;
+-
+-bool round_up_size(SIZE_T value, SIZE_T alignment, SIZE_T& rounded) {
+-    const SIZE_T max = (std::numeric_limits<SIZE_T>::max)();
+-    if (alignment == 0 || (alignment & (alignment - 1)) != 0 || value > max - (alignment - 1)) return false;
+-    rounded = (value + alignment - 1) & ~(alignment - 1);
+-    return true;
+-}
+-
+-// The console's PAGE_GRAPHICS_* protection bits (winnt.h: PAGE_GRAPHICS_NOACCESS 0x800 .. PAGE_GRAPHICS_NOCACHE
+-// 0x40000). The host refuses them with ERROR_INVALID_PARAMETER, and the D3D12 layer reads guest memory through the
+-// CPU mapping, so only the CPU protection is applied. The retail executable passes 0x801 and 0x22004.
+-constexpr DWORD kPageGraphicsMask = 0x0007F800;
+-
+-DWORD host_protect(DWORD p) {
+-    const DWORD cpu = p & ~kPageGraphicsMask;
+-    return cpu ? cpu : PAGE_NOACCESS;
+-}
+-
+-// Physical pages and the windows they are mapped into. One mutex covers both tables and every map and unmap.
+-//
+-// A physical-page window is a reserve-only XMemVirtualAlloc in a guest page mode, or a reserve-only replacement of
+-// part of a placeholder. On the host it is a placeholder, the only kind of reservation a section view can later
+-// replace, and its protection is kept here: the map calls take none, so a mapped page gets its window's protection, as
+-// AWE's MapUserPhysicalPages does.
+-//
+-// ASSUMPTION: a title does not commit memory inside such a window with kernel32!VirtualAlloc. A placeholder refuses a
+-// plain commit; the measured windows are only ever passed to the map calls.
+-struct Window {
+-    SIZE_T size;
+-    DWORD protect;
+-};
+-
+-struct Section {
+-    HANDLE handle;
+-    explicit Section(HANDLE h) : handle(h) {}
+-    Section(const Section&) = delete;
+-    Section& operator=(const Section&) = delete;
+-    ~Section() { CloseHandle(handle); }
+-};
+-
+-struct PhysicalPage {
+-    std::shared_ptr<Section> section;  // a mapped view holds its own reference to the section
+-    uint64_t offset;
+-};
+-
+-constexpr uint64_t kPhysicalPageSize = 0x10000;
+-// Page numbers are 4 KiB frame numbers of 64 KiB pages: the measured title stores them packed and assumes each is a
+-// non-zero multiple of 16 below 2^25, with 0 for an entry it unmaps. So a page number is slot * 16 with slot in
+-// [1, 2^21), and freed slots are reused so a long run never runs out.
+-constexpr uint64_t kFramesPerPage = kPhysicalPageSize / 0x1000;
+-constexpr uint64_t kPageSlotLimit = uint64_t{1} << 21;
+-
+-std::mutex g_phys_mutex;
+-std::map<uintptr_t, Window> g_windows;              // base -> window
+-std::unordered_map<uint64_t, PhysicalPage> g_pages;  // page number -> backing
+-std::vector<uint64_t> g_free_slots;
+-uint64_t g_next_slot = 1;
+-std::unordered_map<uintptr_t, uint64_t> g_mapped;  // mapped 64 KiB address -> page number
+-
+-// With g_phys_mutex held. A window replaces every window it overlaps: the title released those regions (with
+-// kernel32!VirtualFree, which the shim does not see) before the host could hand the addresses out again.
+-void record_window(void* base, SIZE_T size, DWORD protect) {
+-    const uintptr_t start = reinterpret_cast<uintptr_t>(base);
+-    const uintptr_t end = start + size;
+-    auto it = g_windows.lower_bound(start);
+-    if (it != g_windows.begin()) {
+-        const auto prev = std::prev(it);
+-        if (prev->first + prev->second.size > start) it = prev;
+-    }
+-    while (it != g_windows.end() && it->first < end) it = g_windows.erase(it);
+-    g_windows[start] = Window{size, protect};
+-}
+-
+-// With g_phys_mutex held: the window holding [address, address + bytes), if one does.
+-const Window* find_window(uintptr_t address, uint64_t bytes) {
+-    auto it = g_windows.upper_bound(address);
+-    if (it == g_windows.begin()) return nullptr;
+-    --it;
+-    const uint64_t offset = address - it->first;
+-    if (offset >= it->second.size || bytes > it->second.size - offset) return nullptr;
+-    return &it->second;
+-}
+-
+-// [address, address + size) as one placeholder of its own: split it out of the placeholder that holds it. Fails when
+-// the range is not inside one placeholder.
+-bool isolate_placeholder(void* address, SIZE_T size) {
+-    MEMORY_BASIC_INFORMATION info{};
+-    if (!VirtualQuery(address, &info, sizeof(info)) || info.State != MEM_RESERVE) {
+-        SetLastError(ERROR_INVALID_ADDRESS);
+-        return false;
+-    }
+-    if (info.AllocationBase == address && info.RegionSize == size) return true;
+-    return VirtualFree(address, size, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER) != FALSE;
+-}
+-
+-PVOID reserve_placeholder(void* address, SIZE_T size, SIZE_T alignment) {
+-    MEM_ADDRESS_REQUIREMENTS requirements{};
+-    MEM_EXTENDED_PARAMETER parameter{};
+-    ULONG parameter_count = 0;
+-    if (!address && alignment > kXmemPageSize64k) {
+-        requirements.Alignment = alignment;
+-        parameter.Type = MemExtendedParameterAddressRequirements;
+-        parameter.Pointer = &requirements;
+-        parameter_count = 1;
+-    }
+-    return placeholder_api().virtual_alloc2(GetCurrentProcess(), address, size, MEM_RESERVE | MEM_RESERVE_PLACEHOLDER,
+-                                            PAGE_NOACCESS, parameter_count ? &parameter : nullptr, parameter_count);
+-}
+-
+-// PVOID XMemVirtualAlloc(address, size, allocationType, attributes, protect). All 23 calls of the measured title pass a
+-// nonzero attribute word; its bits are not decoded and nothing on the host depends on them, so it is accepted and only
+-// recorded (xmem_attributes). Its types cover committed 2 MiB and 64 KiB pages, reserve-only 64 KiB windows for physical pages, one
+-// MEM_RESERVE_PLACEHOLDER reservation and five MEM_REPLACE_PLACEHOLDER windows carved out of it, each then filled with
+-// XMemMapPhysicalPages. The guest page size sets the alignment and rounding of the region; the host's own pages stay
+-// 4 KiB (host large pages need SeLockMemoryPrivilege). A 2 MiB region the host places is reserved 2 MiB-aligned through
+-// VirtualAlloc2.
+-void* WINAPI XMemVirtualAlloc(void* address, SIZE_T size, DWORD allocation_type, ULONGLONG attributes, DWORD protect) {
+-    note_attributes("XMemVirtualAlloc", attributes, size, _ReturnAddress());
+-    if (size == 0) {
+-        SetLastError(ERROR_INVALID_PARAMETER);
+-        return nullptr;
+-    }
+-
+-    const DWORD page_mode = allocation_type & kXmemPageModeMask;
+-    if (page_mode != 0 && page_mode != kXmem64kPages && page_mode != kXmemLargePages) {
+-        SetLastError(ERROR_INVALID_PARAMETER);
+-        return nullptr;
+-    }
+-
+-    const DWORD unsupported = allocation_type & ~(kXmemHostAllocationTypeMask | kXmemPageModeMask);
+-    if (unsupported != 0) {
+-        SetLastError(ERROR_INVALID_PARAMETER);
+-        return nullptr;
+-    }
+-
+-    DWORD host_type = allocation_type & kXmemHostAllocationTypeMask;
+-    if (host_type == 0) host_type = MEM_RESERVE | MEM_COMMIT;
+-    const DWORD host_prot = host_protect(protect);
+-
+-    const bool commit = (host_type & MEM_COMMIT) != 0;
+-    const bool new_placeholder = (host_type & MEM_RESERVE_PLACEHOLDER) != 0;
+-    const bool replace = (host_type & MEM_REPLACE_PLACEHOLDER) != 0;
+-    const bool window = page_mode != 0 && !commit && !new_placeholder;
+-    if ((new_placeholder || replace || window || page_mode == kXmemLargePages) && !placeholder_api().available()) {
+-        SetLastError(ERROR_NOT_SUPPORTED);
+-        return nullptr;
+-    }
+-
+-    SYSTEM_INFO system_info{};
+-    GetSystemInfo(&system_info);
+-    SIZE_T page_granularity = system_info.dwPageSize;
+-    SIZE_T base_granularity = (host_type & MEM_RESERVE) ? system_info.dwAllocationGranularity : system_info.dwPageSize;
+-    if (page_mode == kXmem64kPages) page_granularity = base_granularity = kXmemPageSize64k;
+-    if (page_mode == kXmemLargePages) page_granularity = base_granularity = kXmemPageSize2m;
+-    if (new_placeholder || replace) {
+-        // Placeholders are split and replaced on allocation-granularity boundaries only.
+-        if (page_granularity < system_info.dwAllocationGranularity) page_granularity = system_info.dwAllocationGranularity;
+-        if (base_granularity < system_info.dwAllocationGranularity) base_granularity = system_info.dwAllocationGranularity;
+-    }
+-    if (page_granularity == 0 || (page_granularity & (page_granularity - 1)) != 0 || base_granularity == 0 ||
+-        (base_granularity & (base_granularity - 1)) != 0) {
+-        SetLastError(ERROR_INVALID_PARAMETER);
+-        return nullptr;
+-    }
+-
+-    if (address != nullptr) {
+-        const uintptr_t requested = reinterpret_cast<uintptr_t>(address);
+-        const uintptr_t max = (std::numeric_limits<uintptr_t>::max)();
+-        if (size > max - requested) {
+-            SetLastError(ERROR_INVALID_PARAMETER);
+-            return nullptr;
+-        }
+-        const uintptr_t requested_end = requested + size;
+-        const uintptr_t base = requested & ~(static_cast<uintptr_t>(base_granularity) - 1);
+-        if (requested_end > max - (static_cast<uintptr_t>(page_granularity) - 1)) {
+-            SetLastError(ERROR_INVALID_PARAMETER);
+-            return nullptr;
+-        }
+-        const uintptr_t end = (requested_end + static_cast<uintptr_t>(page_granularity) - 1) &
+-                              ~(static_cast<uintptr_t>(page_granularity) - 1);
+-        address = reinterpret_cast<void*>(base);
+-        size = static_cast<SIZE_T>(end - base);
+-    } else if (replace) {
+-        SetLastError(ERROR_INVALID_PARAMETER);  // a replacement names the placeholder it replaces
+-        return nullptr;
+-    } else if (page_granularity > system_info.dwPageSize && !round_up_size(size, page_granularity, size)) {
+-        SetLastError(ERROR_INVALID_PARAMETER);
+-        return nullptr;
+-    }
+-
+-    if (replace) {
+-        const std::lock_guard lock(g_phys_mutex);
+-        if (!isolate_placeholder(address, size)) return nullptr;
+-        if (window) {
+-            // A reserve-only replacement stays a placeholder: the physical pages are mapped into it.
+-            record_window(address, size, host_prot);
+-            return address;
+-        }
+-        return placeholder_api().virtual_alloc2(GetCurrentProcess(), address, size, host_type | MEM_RESERVE, host_prot,
+-                                                nullptr, 0);
+-    }
+-    if (new_placeholder || window) {
+-        void* const result = reserve_placeholder(address, size, base_granularity);
+-        if (result && window) {
+-            const std::lock_guard lock(g_phys_mutex);
+-            record_window(result, size, host_prot);
+-        }
+-        return result;
+-    }
+-    if (page_mode == kXmemLargePages && address == nullptr) {
+-        MEM_ADDRESS_REQUIREMENTS requirements{};
+-        requirements.Alignment = kXmemPageSize2m;
+-        MEM_EXTENDED_PARAMETER parameter{};
+-        parameter.Type = MemExtendedParameterAddressRequirements;
+-        parameter.Pointer = &requirements;
+-        return placeholder_api().virtual_alloc2(GetCurrentProcess(), nullptr, size, host_type | MEM_RESERVE, host_prot,
+-                                                &parameter, 1);
+-    }
+-    return VirtualAlloc(address, size, host_type, host_prot);
+-}
+-
+-// With g_phys_mutex held. Unmaps the page at `address` if one is mapped there; the address becomes a placeholder again.
+-bool unmap_page(uintptr_t address) {
+-    const auto it = g_mapped.find(address);
+-    if (it == g_mapped.end()) return true;
+-    if (!placeholder_api().unmap_view2(GetCurrentProcess(), reinterpret_cast<void*>(address),
+-                                       MEM_PRESERVE_PLACEHOLDER)) {
+-        return false;
+-    }
+-    g_mapped.erase(it);
+-    return true;
+-}
+-
+-// With g_phys_mutex held. Maps physical page `page` (0: unmap) at the 64 KiB-aligned `address`, replacing what was
+-// mapped there. The caller has found the window.
+-bool map_page(uintptr_t address, uint64_t page, DWORD protect) {
+-    if (!unmap_page(address)) return false;
+-    if (page == 0) return true;
+-    const auto it = g_pages.find(page);
+-    if (it == g_pages.end()) {
+-        SetLastError(ERROR_INVALID_PARAMETER);
+-        return false;
+-    }
+-    void* const target = reinterpret_cast<void*>(address);
+-    if (!isolate_placeholder(target, kPhysicalPageSize)) return false;
+-    void* const view = placeholder_api().map_view3(it->second.section->handle, GetCurrentProcess(), target,
+-                                                   it->second.offset, kPhysicalPageSize, MEM_REPLACE_PLACEHOLDER,
+-                                                   protect, nullptr, 0);
+-    if (!view) return false;
+-    g_mapped[address] = page;
+-    return true;
+-}
+-
+-// Two of the measured windows are reserved PAGE_NOACCESS for the CPU and the GPU alike; pages mapped there are still
+-// GPU memory, which the D3D12 layer reads on the CPU.
+-DWORD view_protect(const Window& window) {
+-    return window.protect == PAGE_NOACCESS ? PAGE_READWRITE : window.protect;
+-}
+-
+-bool aligned_page_address(uintptr_t address) { return (address & (kPhysicalPageSize - 1)) == 0; }
+-
+-// gta6rt --trace FILE: the first XMemAllocatePhysicalPages for each distinct attribute word goes to the startup trace
+-// as an "xmem_physical_pages" event with the page count and the caller.
+-void note_physical_attributes(uint64_t attributes, uint64_t count, const void* caller) {
+-    if (!rt::startup_trace::enabled()) return;
+-    static std::mutex mutex;
+-    static std::set<uint64_t> seen;
+-    {
+-        const std::lock_guard lock(mutex);
+-        if (!seen.insert(attributes).second) return;
+-    }
+-    rt::startup_trace::event("xmem_physical_pages",
+-                             "\"api\":\"XMemAllocatePhysicalPages\",\"attributes\":" +
+-                                 rt::startup_trace::quote(rt::startup_trace::hex(attributes)) +
+-                                 ",\"pages\":" + std::to_string(count) + caller_field(caller));
+-}
+-
+-// BOOL XMemAllocatePhysicalPages(attributes, UINT64* pageCount, UINT64* pageArray). Measured at four call sites: RCX is
+-// a constant attribute word, RDX points at the number of 64 KiB pages (every caller computes it as the byte size
+-// rounded up and shifted right by 16), R8 at an array that receives one page number per page. The result is tested as
+-// a 32-bit BOOL. After success every caller compares the count with the one it asked for and frees the pages if they
+-// differ, so the count is in/out.
+-//
+-// Each call is backed by one pagefile-backed section of count * 64 KiB: committed (charged) at once, given physical
+-// memory as it is touched, zero-filled. Pages keep their contents while unmapped or mapped elsewhere, and one page can
+-// be mapped at several addresses. ASSUMPTION: the attribute word (memory type, perhaps the page size) is not decoded;
+-// every page is 64 KiB, which all four callers' arithmetic agrees with.
+-BOOL WINAPI XMemAllocatePhysicalPages(uint64_t attributes, uint64_t* page_count, uint64_t* page_array) {
+-    note_physical_attributes(attributes, page_count ? *page_count : 0, _ReturnAddress());
+-    if (!page_count || (*page_count && !page_array)) {
+-        SetLastError(ERROR_INVALID_PARAMETER);
+-        return FALSE;
+-    }
+-    const uint64_t count = *page_count;
+-    if (count == 0) return TRUE;
+-
+-    const std::lock_guard lock(g_phys_mutex);
+-    if (count > g_free_slots.size() + (kPageSlotLimit - g_next_slot)) {
+-        *page_count = 0;
+-        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+-        return FALSE;
+-    }
+-    const uint64_t bytes = count * kPhysicalPageSize;  // below 2^37: count is below 2^21
+-    const HANDLE handle = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE | SEC_COMMIT,
+-                                             static_cast<DWORD>(bytes >> 32), static_cast<DWORD>(bytes), nullptr);
+-    if (!handle) {
+-        *page_count = 0;
+-        return FALSE;
+-    }
+-    const auto section = std::make_shared<Section>(handle);
+-    for (uint64_t i = 0; i < count; ++i) {
+-        uint64_t slot;
+-        if (!g_free_slots.empty()) {
+-            slot = g_free_slots.back();
+-            g_free_slots.pop_back();
+-        } else {
+-            slot = g_next_slot++;
+-        }
+-        const uint64_t page = slot * kFramesPerPage;
+-        g_pages[page] = PhysicalPage{section, i * kPhysicalPageSize};
+-        page_array[i] = page;
+-    }
+-    return TRUE;
+-}
+-
+-// BOOL XMemFreePhysicalPages(UINT64 pageCount, UINT64* pageArray). Measured at three call sites: RCX is the count (the
+-// one XMemAllocatePhysicalPages returned, or the sum of several allocations), RDX the array. The callers unmap the
+-// pages first; a page that is still mapped keeps its memory until it is unmapped. FALSE, with the entries before it
+-// freed, for a number that is not a live page.
+-BOOL WINAPI XMemFreePhysicalPages(uint64_t page_count, const uint64_t* page_array) {
+-    if (page_count && !page_array) {
+-        SetLastError(ERROR_INVALID_PARAMETER);
+-        return FALSE;
+-    }
+-    const std::lock_guard lock(g_phys_mutex);
+-    for (uint64_t i = 0; i < page_count; ++i) {
+-        const auto it = g_pages.find(page_array[i]);
+-        if (it == g_pages.end()) {
+-            SetLastError(ERROR_INVALID_PARAMETER);
+-            return FALSE;
+-        }
+-        g_pages.erase(it);
+-        g_free_slots.push_back(page_array[i] / kFramesPerPage);
+-    }
+-    return TRUE;
+-}
+-
+-// PVOID XMemMapPhysicalPages(PVOID address, UINT64 pageCount, UINT64* pageArray). Measured at twelve call sites: RCX
+-// is an address in a window XMemVirtualAlloc reserved, RDX a 64-bit count, R8 the pages to map there one after another,
+-// or null to unmap that many (four calls at shutdown). Callers test the 64-bit result for zero, so it is the address on
+-// success. A page number of 0 in the array unmaps that one page.
+-//
+-// Each page is its own view (MapViewOfFile3 into a 64 KiB placeholder), so any page can be remapped or unmapped later
+-// without touching its neighbours. A failure part-way leaves the pages before it mapped.
+-void* WINAPI XMemMapPhysicalPages(void* address, uint64_t page_count, const uint64_t* page_array) {
+-    const uintptr_t start = reinterpret_cast<uintptr_t>(address);
+-    if (!aligned_page_address(start) || page_count > (std::numeric_limits<uintptr_t>::max)() / kPhysicalPageSize ||
+-        start > (std::numeric_limits<uintptr_t>::max)() - page_count * kPhysicalPageSize) {
+-        SetLastError(ERROR_INVALID_PARAMETER);
+-        return nullptr;
+-    }
+-    if (!placeholder_api().available()) {
+-        SetLastError(ERROR_NOT_SUPPORTED);
+-        return nullptr;
+-    }
+-    const std::lock_guard lock(g_phys_mutex);
+-    if (!page_array) {
+-        for (uint64_t i = 0; i < page_count; ++i) {
+-            if (!unmap_page(start + i * kPhysicalPageSize)) return nullptr;
+-        }
+-        return address;
+-    }
+-    const Window* const window = find_window(start, page_count * kPhysicalPageSize);
+-    if (!window) {
+-        SetLastError(ERROR_INVALID_ADDRESS);
+-        return nullptr;
+-    }
+-    const DWORD protect = view_protect(*window);
+-    for (uint64_t i = 0; i < page_count; ++i) {
+-        if (!map_page(start + i * kPhysicalPageSize, page_array[i], protect)) return nullptr;
+-    }
+-    return address;
+-}
+-
+-// BOOL XMemMapPhysicalPagesScatter(PVOID* addresses, UINT32 pageCount, UINT64* pageArray). Measured at two call sites:
+-// RCX is an array of addresses, EDX a 32-bit count, R8 the page for each address (an entry of 0, or a null array,
+-// unmaps). The result is tested as a 32-bit BOOL. Like MapUserPhysicalPagesScatter: entry i maps pageArray[i] at
+-// addresses[i].
+-BOOL WINAPI XMemMapPhysicalPagesScatter(void* const* addresses, uint32_t page_count, const uint64_t* page_array) {
+-    if (page_count && !addresses) {
+-        SetLastError(ERROR_INVALID_PARAMETER);
+-        return FALSE;
+-    }
+-    if (!placeholder_api().available()) {
+-        SetLastError(ERROR_NOT_SUPPORTED);
+-        return FALSE;
+-    }
+-    const std::lock_guard lock(g_phys_mutex);
+-    for (uint32_t i = 0; i < page_count; ++i) {
+-        const uintptr_t address = reinterpret_cast<uintptr_t>(addresses[i]);
+-        if (!aligned_page_address(address)) {
+-            SetLastError(ERROR_INVALID_PARAMETER);
+-            return FALSE;
+-        }
+-        const uint64_t page = page_array ? page_array[i] : 0;
+-        if (page == 0) {
+-            if (!unmap_page(address)) return FALSE;
+-            continue;
+-        }
+-        const Window* const window = find_window(address, kPhysicalPageSize);
+-        if (!window) {
+-            SetLastError(ERROR_INVALID_ADDRESS);
+-            return FALSE;
+-        }
+-        if (!map_page(address, page, view_protect(*window))) return FALSE;
+-    }
+-    return TRUE;
+-}
+-
+-UINT WINAPI XMemGetWriteWatch(DWORD flags, void* base_address, SIZE_T region_size, void** addresses, ULONG_PTR* count,
+-                              ULONG* granularity) {
+-    return GetWriteWatch(flags, base_address, region_size, addresses, count, granularity);
+-}
+-
+-UINT WINAPI XMemResetWriteWatch(void* base_address, SIZE_T region_size) {
+-    return ResetWriteWatch(base_address, region_size);
+-}
+-
+-// BOOL XMemTransferMemory(XMEM_TRANSFER_TYPE type, SIZE_T size). Its reference page and the XMEM_TRANSFER_TYPE enum
+-// page (gaming/gdk/docs/reference/system/xmem/{functions/xmemtransfermemory,enums/xmem_transfer_type}) are NDA
+-// topics on Microsoft Learn, so the shape comes from public code built against the GDK's xmem.h: Microsoft's
+-// XBOX-MonoGame-NetRumble sample (console/NetRumble.Bootstrap/Main.cpp) and FNA-XNA/NativeAOT-Xbox (Bootstrap/Main.cpp)
+-// both call `if (!XMemTransferMemory(XMemTransferTitleToSystem, additionalKernelPoolMemory))` with a `const size_t`,
+-// commented "Transfer additional memory to kernel pool" and "Must be multiples of 2MB sizes". So: two arguments, the
+-// enum (32 bits) in ECX and the size in RDX, and a zero return is failure. The public XLaunchNewGame page adds that
+-// "Memory transferred to the system using XMemTransferMemory (NDA topic) is persisted", and the game-save debugging
+-// page suggests it for E_OUTOFMEMORY "to transfer some memory to the system partition".
+-//
+-// On the console it moves budget between the title's partition and the system's. A PC has one pool and no budget
+-// split, so there is nothing to move: every direction and size returns TRUE and nothing is allocated or reserved. Not
+-// known (the pages are NDA): the numeric XMEM_TRANSFER_TYPE values, and whether the console refuses or rounds a size
+-// that is not a multiple of 2 MiB. Refusing would stop a title at startup (both samples return -1), while succeeding
+-// changes nothing here. TRUE is 1 in EAX, so it also reads as true if the real return type is a one-byte bool.
+-//
+-// gta6rt --trace FILE: the first call for each distinct (type, size) pair goes to the startup trace as an
+-// "xmem_transfer" event with the caller as module+RVA, so a run with the executable records the values it passes.
+-BOOL WINAPI XMemTransferMemory(uint32_t type, SIZE_T size) {
+-    static std::atomic<bool> warned{false};
+-    if (!warned.exchange(true, std::memory_order_relaxed)) {
+-        std::fprintf(stderr,
+-                     "[rt] xmem: XMemTransferMemory(type %u, %zu bytes): a PC has no title/system memory partition; "
+-                     "returning TRUE without moving anything (logged once)\n",
+-                     type, static_cast<size_t>(size));
+-    }
+-    if (rt::startup_trace::enabled()) {
+-        static std::mutex mutex;
+-        static std::set<std::pair<uint32_t, uint64_t>> seen;
+-        bool first = false;
+-        {
+-            const std::lock_guard lock(mutex);
+-            first = seen.insert({type, static_cast<uint64_t>(size)}).second;
+-        }
+-        if (first) {
+-            rt::startup_trace::event(
+-                "xmem_transfer",
+-                "\"api\":\"XMemTransferMemory\",\"type\":" + std::to_string(type) +
+-                    ",\"size\":" + std::to_string(static_cast<uint64_t>(size)) + ",\"caller\":" +
+-                    rt::startup_trace::quote(
+-                        rt::startup_trace::where(reinterpret_cast<uint64_t>(_ReturnAddress()))));
+-        }
+-    }
+-    return TRUE;
+-}
+-
+-// kernel32!VirtualAlloc as a title calls it. The console's allocation type has two bits of its own, MEM_GRAPHICS
+-// (0x10000000, memory the GPU reads) and MEM_TITLE (0x40000000, the title's own heap). On a PC the host rejects both
+-// with ERROR_INVALID_PARAMETER (measured on Windows 11 26200: VirtualAlloc(NULL, 64 KiB, MEM_COMMIT | MEM_RESERVE |
+-// 0x10000000, PAGE_READWRITE) returns NULL; so does 0x40000000), so an engine allocating its heaps this way gets
+-// NULL at boot. Both are hints about where the memory lives; the host has no such split, so they are dropped and
+-// the rest is passed through. The PAGE_GRAPHICS_* protection bits are dropped (host_protect). Not done: whether
+-// graphics memory has to come from an arena the D3D12 layer can see (#313).
+-constexpr DWORD kMemGraphics = 0x10000000;
+-constexpr DWORD kMemTitle = 0x40000000;
+-
+-LPVOID WINAPI TitleVirtualAlloc(LPVOID address, SIZE_T size, DWORD allocation_type, DWORD protect) {
+-    return VirtualAlloc(address, size, allocation_type & ~(kMemGraphics | kMemTitle), host_protect(protect));
+-}
+-
+-}  // namespace
+-
+-#define TITLE_VIRTUAL_ALLOC(dll) {dll, "VirtualAlloc", reinterpret_cast<void*>(&TitleVirtualAlloc)}
+-
+-// The classic libraries and the memory api sets a title's imports name.
+-SHIM_TABLE(title_memory,
+-    TITLE_VIRTUAL_ALLOC("kernel32.dll"),
+-    TITLE_VIRTUAL_ALLOC("kernelbase.dll"),
+-    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-0.dll"),
+-    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-1.dll"),
+-    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-2.dll"),
+-    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-3.dll"),
+-    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-4.dll"),
+-    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-5.dll"),
+-    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-6.dll"),
+-);
+-
+-SHIM_TABLE(xmem,
+-    {"xmem.dll", "XMemAlloc", reinterpret_cast<void*>(&XMemAlloc)},
+-    {"xmem.dll", "XMemFree", reinterpret_cast<void*>(&XMemFree)},
+-    {"xmem.dll", "XMemVirtualQuery", reinterpret_cast<void*>(&XMemVirtualQuery)},
+-    {"xmem.dll", "XMemGetWorkingSetStatistics", reinterpret_cast<void*>(&XMemGetWorkingSetStatistics)},
+-    {"xmem.dll", "XMemVirtualAlloc", reinterpret_cast<void*>(&XMemVirtualAlloc)},
+-    {"xmem.dll", "XMemGetWriteWatch", reinterpret_cast<void*>(&XMemGetWriteWatch)},
+-    {"xmem.dll", "XMemResetWriteWatch", reinterpret_cast<void*>(&XMemResetWriteWatch)},
+-    {"xmem.dll", "XMemTransferMemory", reinterpret_cast<void*>(&XMemTransferMemory)},
+-    {"xmem.dll", "XMemAllocDefault", reinterpret_cast<void*>(&XMemAllocDefault)},
+-    {"xmem.dll", "XMemFreeDefault", reinterpret_cast<void*>(&XMemFreeDefault)},
+-    {"xmem.dll", "XMemIsToolsMemAvailable", reinterpret_cast<void*>(&XMemIsToolsMemAvailable)},
+-    {"xmem.dll", "XMemAllocatePhysicalPages", reinterpret_cast<void*>(&XMemAllocatePhysicalPages)},
+-    {"xmem.dll", "XMemFreePhysicalPages", reinterpret_cast<void*>(&XMemFreePhysicalPages)},
+-    {"xmem.dll", "XMemMapPhysicalPages", reinterpret_cast<void*>(&XMemMapPhysicalPages)},
+-    {"xmem.dll", "XMemMapPhysicalPagesScatter", reinterpret_cast<void*>(&XMemMapPhysicalPagesScatter)},
+-);
++// xmem.dll: the GDK's tracked allocator. Mapped onto the CRT's aligned heap and VirtualQueryEx.
++//
++// The measured ABI (docs from the clean-room spec) shows four imports:
++//   XMemAlloc(size, attributes)
++//   XMemFree(ptr, attributes)
++//   XMemVirtualQuery(process, address, out64)
++//   XMemGetWorkingSetStatistics(kind, out)   (kind 0x20000001 at all seven FSR call sites)
++//
++// ASSUMPTION: the attribute word is not decoded by the measured call sites (one passes 0x5e50000). Until a call
++// site shows the alignment/type fields, every block is 64-byte aligned (covers cache lines and SIMD) and a size of
++// zero is rounded up to one byte so the result is a stable, non-null pointer that XMemFree can release.
++#include <windows.h>
++#include <intrin.h>
++#include <malloc.h>
++#include <psapi.h>
++
++#include <atomic>
++#include <cstdint>
++#include <cstdio>
++#include <cstring>
++#include <limits>
++#include <mutex>
++#include <set>
 +#include <map>
- #include <string>
++#include <string>
 +#include <unordered_set>
- #include <utility>
++#include <utility>
 +#include <vector>
- 
- #include "shims.h"
- #include "startup_trace.h"
-@@ -52,9 +55,17 @@ void note_attributes(const char* api, uint64_t attributes, size_t size, const vo
-     rt::startup_trace::event("xmem_attributes", fields);
- }
- 
++
++#include "shims.h"
++#include "startup_trace.h"
++
++namespace {
++
++constexpr size_t kAlign = 64;
++constexpr size_t kNoSize = static_cast<size_t>(-1);  // XMemFree has no size field
++
++// gta6rt --trace FILE: the first XMemAlloc, XMemFree and XMemVirtualAlloc call for each distinct raw attribute word go to the
++// startup trace as an "xmem_attributes" event (api, the word, the size for an allocation, the caller as module+RVA). The
++// bits of the attribute word are not known yet; this records them from a real run without logging every allocation,
++// which would fill the file. Off: one relaxed load per call.
++void note_attributes(const char* api, uint64_t attributes, size_t size, const void* caller) {
++    if (!rt::startup_trace::enabled()) return;
++    static std::mutex mutex;
++    static std::set<std::pair<std::string, uint64_t>> seen;
++    {
++        const std::lock_guard lock(mutex);
++        if (!seen.insert({api, attributes}).second) return;
++    }
++    std::string fields = std::string("\"api\":\"") + api +
++                         "\",\"attributes\":" + rt::startup_trace::quote(rt::startup_trace::hex(attributes));
++    if (size != kNoSize) fields += ",\"size\":" + std::to_string(size);
++    fields += ",\"caller\":" +
++              rt::startup_trace::quote(rt::startup_trace::where(reinterpret_cast<uint64_t>(caller)));
++    rt::startup_trace::event("xmem_attributes", fields);
++}
++
 +// XboxCompat finding (docs/research/re-addendum-ghidra.md): two callers agree that bits 24..27 of the attribute word
 +// are log2(alignment) (Bink 0x05E50000 -> 32 and aligns its own blocks to 32; the FSR4 upscaler 0xA8004000 -> 256 and
 +// rounds its sizes to 256) and bit 31 asks for zeroed memory. UNVERIFIED against a GDK header; the 64-byte floor of the
 +// original shim stays, so a wrong decoding can only over-align.
- void* __stdcall XMemAlloc(size_t size, uint64_t attributes) {
-     note_attributes("XMemAlloc", attributes, size, _ReturnAddress());
--    return _aligned_malloc(size ? size : 1, kAlign);
++void* __stdcall XMemAlloc(size_t size, uint64_t attributes) {
++    note_attributes("XMemAlloc", attributes, size, _ReturnAddress());
 +    size_t align = static_cast<size_t>(1) << ((attributes >> 24) & 0xF);
 +    if (align < kAlign) align = kAlign;
 +    void* p = _aligned_malloc(size ? size : 1, align);
 +    if (p && ((attributes >> 31) & 1)) std::memset(p, 0, size ? size : 1);
 +    return p;
- }
- 
- void __stdcall XMemFree(void* p, uint64_t attributes) {
-@@ -152,6 +163,179 @@ DWORD host_protect(DWORD p) {
-     return cpu ? cpu : PAGE_NOACCESS;
- }
- 
++}
++
++void __stdcall XMemFree(void* p, uint64_t attributes) {
++    note_attributes("XMemFree", attributes, kNoSize, _ReturnAddress());
++    _aligned_free(p);
++}
++
++// Measured call sites pass a zeroed 64-byte structure. Only the MEMORY_BASIC_INFORMATION-compatible prefix is
++// known: callers read at least the base and size fields. Fill that prefix from VirtualQueryEx and zero the rest.
++constexpr size_t kVirtualQueryOutSize = 64;
++static_assert(sizeof(MEMORY_BASIC_INFORMATION) <= kVirtualQueryOutSize,
++              "the 64-byte XMemVirtualQuery output must hold MEMORY_BASIC_INFORMATION");
++
++// Returns the number of bytes written (the VirtualQuery convention) or 0 on failure. The exact return type and the
++// meaning of every output field are not fully known; callers in the package only test for success.
++SIZE_T __stdcall XMemVirtualQuery(HANDLE process, const void* address, void* out) {
++    if (!out) return 0;
++    std::memset(out, 0, kVirtualQueryOutSize);
++    if (!address) return 0;
++
++    static std::atomic<bool> warned{false};
++    if (!warned.exchange(true, std::memory_order_relaxed)) {
++        std::fprintf(stderr,
++                     "[rt] xmem: XMemVirtualQuery: fields after MEMORY_BASIC_INFORMATION are unknown; "
++                     "the 64-byte output is zero-filled there\n");
++    }
++
++    // A null handle means the current process; GetCurrentProcess() is the (HANDLE)-1 pseudo handle.
++    HANDLE target = process ? process : GetCurrentProcess();
++    MEMORY_BASIC_INFORMATION info{};
++    SIZE_T written = VirtualQueryEx(target, address, &info, sizeof(info));
++    if (!written) return 0;
++
++    std::memcpy(out, &info, written < kVirtualQueryOutSize ? written : kVirtualQueryOutSize);
++    return written;
++}
++
++// BOOL XMemGetWorkingSetStatistics(UINT32 kind, XMEM_WORKING_SET_STATISTICS* stats). Measured at all seven call sites
++// in amd_fidelityfx_upscaler_xbox.dll (1.0.2.1; calls at RVAs 0x26b3, 0x2ea1, 0x39a9, 0x7452, 0x74d2, 0x7568,
++// 0x75b1): ECX is the constant 0x20000001 (its meaning is not known) and RDX points at a stack buffer (0x80 bytes
++// where the frame shows it). The caller reads a 64-bit size at +8 and treats a zero return as "no data". Taking the
++// pointer from the first argument wrote to address 0x20000001.
++// The measured FSR sites establish argument shape, kind and the 64-bit working-set read at +8; +0's title-total memory
++// limit interpretation is inferred from other Series implementations (xcl, xbox-emulator) and title engine telemetry
++// sizing memory pools (RT-220). Note that if GlobalMemoryStatusEx reports 0 physical memory, XMem falls back to the
++// 12 GiB title limit, whereas XSystemGetAppMemoryUsageLimit remains 0.
++BOOL __stdcall XMemGetWorkingSetStatistics(uint32_t /*kind*/, void* stats) {
++    if (!stats) {
++        static std::atomic<bool> warned{false};
++        if (!warned.exchange(true, std::memory_order_relaxed)) {
++            std::fprintf(stderr, "[rt] xmem: XMemGetWorkingSetStatistics(nullptr) -> FALSE\n");
++        }
++        return FALSE;
++    }
++
++    PROCESS_MEMORY_COUNTERS pmc{};
++    if (!GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) return FALSE;
++
++    MEMORYSTATUSEX ms{sizeof(ms)};
++    uint64_t total_memory = 12ULL * 1024 * 1024 * 1024;
++    if (GlobalMemoryStatusEx(&ms) && ms.ullTotalPhys != 0) {
++        total_memory = ms.ullTotalPhys;
++    }
++
++    uint8_t* bytes = static_cast<uint8_t*>(stats);
++    std::memset(bytes, 0, 16);
++    std::memcpy(bytes + 0, &total_memory, sizeof(total_memory));
++    uint64_t working_set = pmc.WorkingSetSize;
++    std::memcpy(bytes + 8, &working_set, sizeof(working_set));
++    return TRUE;
++}
++
++// XMem allocation-type page bits select the guest page granularity and must not be forwarded as Win32 flags.
++constexpr DWORD kXmemLargePages = 0x20000000;
++constexpr DWORD kXmem64kPages = 0x20400000;
++constexpr DWORD kXmemPageModeMask = kXmem64kPages;
++constexpr SIZE_T kXmemPageSize64k = 0x10000;
++constexpr DWORD kXmemHostAllocationTypeMask =
++    MEM_COMMIT | MEM_RESERVE | MEM_RESET | MEM_TOP_DOWN | MEM_WRITE_WATCH | 0x01000000;
++
++bool round_up_size(SIZE_T value, SIZE_T alignment, SIZE_T& rounded) {
++    const SIZE_T max = (std::numeric_limits<SIZE_T>::max)();
++    if (alignment == 0 || (alignment & (alignment - 1)) != 0 || value > max - (alignment - 1)) return false;
++    rounded = (value + alignment - 1) & ~(alignment - 1);
++    return true;
++}
++
++// The console's PAGE_GRAPHICS_* protection bits (winnt.h: PAGE_GRAPHICS_NOACCESS 0x800 .. PAGE_GRAPHICS_NOCACHE
++// 0x40000). The host refuses them with ERROR_INVALID_PARAMETER, and the D3D12 layer reads guest memory through the
++// CPU mapping, so only the CPU protection is applied. The retail executable passes 0x801 and 0x22004.
++constexpr DWORD kPageGraphicsMask = 0x0007F800;
++
++DWORD host_protect(DWORD p) {
++    const DWORD cpu = p & ~kPageGraphicsMask;
++    return cpu ? cpu : PAGE_NOACCESS;
++}
++
 +
 +// ---- XboxCompat additions: aligned reservations and the "physical page" pool ------------------------------------------
 +// Design (ours; semantics of flags/attributes unmeasured, see docs/research/re-addendum-ghidra.md and xmem_phys notes):
@@ -3958,20 +4827,25 @@ index a1061af..7f03d3f 100644
 +                            host_protect(protect), nullptr, 0);
 +}
 +
- void* WINAPI XMemVirtualAlloc(void* address, SIZE_T size, DWORD allocation_type, ULONGLONG attributes, DWORD protect) {
-     // Host-backed support covers ordinary and 64 KiB guest reservations. The 2 MiB guest mode needs an aligned
-     // reservation strategy that this shim does not provide, so fail explicitly instead of returning a misaligned
-@@ -166,10 +350,34 @@ void* WINAPI XMemVirtualAlloc(void* address, SIZE_T size, DWORD allocation_type,
-         return nullptr;
-     }
- 
++void* WINAPI XMemVirtualAlloc(void* address, SIZE_T size, DWORD allocation_type, ULONGLONG attributes, DWORD protect) {
++    // Host-backed support covers ordinary and 64 KiB guest reservations. The 2 MiB guest mode needs an aligned
++    // reservation strategy that this shim does not provide, so fail explicitly instead of returning a misaligned
++    // region.
++    //
++    // The attribute word is recorded, not applied, as for XMemAlloc: the host has no allocator ids or memory types.
++    // The retail executable passes 0x21, 0x3, 0x183, 0x283 and 0x181 and stops at an int3 when a reservation
++    // returns NULL, so refusing a nonzero word is not an option.
++    note_attributes("XMemVirtualAlloc", attributes, size, _ReturnAddress());
++    if (size == 0) {
++        SetLastError(ERROR_INVALID_PARAMETER);
++        return nullptr;
++    }
++
 +    if (allocation_type & (kMemReservePlaceholderBit | kMemReplacePlaceholderBit))
 +        return placeholder_forms(address, size, allocation_type, protect);
 +
-     const DWORD page_mode = allocation_type & kXmemPageModeMask;
-     if (page_mode == kXmemLargePages) {
--        SetLastError(ERROR_NOT_SUPPORTED);
--        return nullptr;
++    const DWORD page_mode = allocation_type & kXmemPageModeMask;
++    if (page_mode == kXmemLargePages) {
 +        // 2 MiB guest pages (XboxCompat): ordinary host pages, base and size rounded to 2 MiB. The host has no large-page
 +        // privilege for a normal user and the guest only needs the address-space shape. Unmeasured: whether the title
 +        // relies on the memory being physically contiguous.
@@ -3995,13 +4869,59 @@ index a1061af..7f03d3f 100644
 +        void* window = reserve_physical_window(address, size);
 +        if (window) note_attributes("XMemVirtualAlloc(window)", attributes, size, _ReturnAddress());
 +        return window;
-     }
-     if (page_mode != 0 && page_mode != kXmem64kPages) {
-         SetLastError(ERROR_INVALID_PARAMETER);
-@@ -223,6 +431,82 @@ void* WINAPI XMemVirtualAlloc(void* address, SIZE_T size, DWORD allocation_type,
-     return VirtualAlloc(address, size, host_type, host_protect(protect));
- }
- 
++    }
++    if (page_mode != 0 && page_mode != kXmem64kPages) {
++        SetLastError(ERROR_INVALID_PARAMETER);
++        return nullptr;
++    }
++
++    const DWORD unsupported = allocation_type & ~(kXmemHostAllocationTypeMask | kXmemPageModeMask);
++    if (unsupported != 0) {
++        SetLastError(ERROR_INVALID_PARAMETER);
++        return nullptr;
++    }
++
++    DWORD host_type = allocation_type & kXmemHostAllocationTypeMask;
++    if (host_type == 0) host_type = MEM_RESERVE | MEM_COMMIT;
++
++    SYSTEM_INFO system_info{};
++    GetSystemInfo(&system_info);
++    const SIZE_T page_granularity = page_mode == kXmem64kPages ? kXmemPageSize64k : system_info.dwPageSize;
++    const SIZE_T base_granularity =
++        page_mode == kXmem64kPages
++            ? kXmemPageSize64k
++            : ((host_type & MEM_RESERVE) ? system_info.dwAllocationGranularity : system_info.dwPageSize);
++    if (page_granularity == 0 || (page_granularity & (page_granularity - 1)) != 0 || base_granularity == 0 ||
++        (base_granularity & (base_granularity - 1)) != 0) {
++        SetLastError(ERROR_INVALID_PARAMETER);
++        return nullptr;
++    }
++
++    if (address != nullptr) {
++        const uintptr_t requested = reinterpret_cast<uintptr_t>(address);
++        const uintptr_t max = (std::numeric_limits<uintptr_t>::max)();
++        if (size > max - requested) {
++            SetLastError(ERROR_INVALID_PARAMETER);
++            return nullptr;
++        }
++        const uintptr_t requested_end = requested + size;
++        const uintptr_t base = requested & ~(static_cast<uintptr_t>(base_granularity) - 1);
++        if (requested_end > max - (static_cast<uintptr_t>(page_granularity) - 1)) {
++            SetLastError(ERROR_INVALID_PARAMETER);
++            return nullptr;
++        }
++        const uintptr_t end = (requested_end + static_cast<uintptr_t>(page_granularity) - 1) &
++                              ~(static_cast<uintptr_t>(page_granularity) - 1);
++        address = reinterpret_cast<void*>(base);
++        size = static_cast<SIZE_T>(end - base);
++    } else if (page_mode == kXmem64kPages && !round_up_size(size, page_granularity, size)) {
++        SetLastError(ERROR_INVALID_PARAMETER);
++        return nullptr;
++    }
++
++    return VirtualAlloc(address, size, host_type, host_protect(protect));
++}
++
 +// Physical-page family: inferred shapes (docs/xmem_exe_calls.md of the third-party project and our own trace):
 +//   BOOL XMemAllocatePhysicalPages(ULONG64 flags, ULONG_PTR* count /*in/out, 64 KiB pages*/, ULONG_PTR* pages)
 +//   BOOL XMemMapPhysicalPages(void* va, ULONG_PTR count, const ULONG_PTR* pages)   // pages == NULL unmaps
@@ -4078,13 +4998,101 @@ index a1061af..7f03d3f 100644
 +// Development-kit "tools memory" does not exist on a retail PC run.
 +BOOL WINAPI XMemIsToolsMemAvailable() { return FALSE; }
 +
- UINT WINAPI XMemGetWriteWatch(DWORD flags, void* base_address, SIZE_T region_size, void** addresses, ULONG_PTR* count,
-                               ULONG* granularity) {
-     return GetWriteWatch(flags, base_address, region_size, addresses, count, granularity);
-@@ -318,4 +602,11 @@ SHIM_TABLE(xmem,
-     {"xmem.dll", "XMemGetWriteWatch", reinterpret_cast<void*>(&XMemGetWriteWatch)},
-     {"xmem.dll", "XMemResetWriteWatch", reinterpret_cast<void*>(&XMemResetWriteWatch)},
-     {"xmem.dll", "XMemTransferMemory", reinterpret_cast<void*>(&XMemTransferMemory)},
++UINT WINAPI XMemGetWriteWatch(DWORD flags, void* base_address, SIZE_T region_size, void** addresses, ULONG_PTR* count,
++                              ULONG* granularity) {
++    return GetWriteWatch(flags, base_address, region_size, addresses, count, granularity);
++}
++
++UINT WINAPI XMemResetWriteWatch(void* base_address, SIZE_T region_size) {
++    return ResetWriteWatch(base_address, region_size);
++}
++
++// BOOL XMemTransferMemory(XMEM_TRANSFER_TYPE type, SIZE_T size). Its reference page and the XMEM_TRANSFER_TYPE enum
++// page (gaming/gdk/docs/reference/system/xmem/{functions/xmemtransfermemory,enums/xmem_transfer_type}) are NDA
++// topics on Microsoft Learn, so the shape comes from public code built against the GDK's xmem.h: Microsoft's
++// XBOX-MonoGame-NetRumble sample (console/NetRumble.Bootstrap/Main.cpp) and FNA-XNA/NativeAOT-Xbox (Bootstrap/Main.cpp)
++// both call `if (!XMemTransferMemory(XMemTransferTitleToSystem, additionalKernelPoolMemory))` with a `const size_t`,
++// commented "Transfer additional memory to kernel pool" and "Must be multiples of 2MB sizes". So: two arguments, the
++// enum (32 bits) in ECX and the size in RDX, and a zero return is failure. The public XLaunchNewGame page adds that
++// "Memory transferred to the system using XMemTransferMemory (NDA topic) is persisted", and the game-save debugging
++// page suggests it for E_OUTOFMEMORY "to transfer some memory to the system partition".
++//
++// On the console it moves budget between the title's partition and the system's. A PC has one pool and no budget
++// split, so there is nothing to move: every direction and size returns TRUE and nothing is allocated or reserved. Not
++// known (the pages are NDA): the numeric XMEM_TRANSFER_TYPE values, and whether the console refuses or rounds a size
++// that is not a multiple of 2 MiB. Refusing would stop a title at startup (both samples return -1), while succeeding
++// changes nothing here. TRUE is 1 in EAX, so it also reads as true if the real return type is a one-byte bool.
++//
++// gta6rt --trace FILE: the first call for each distinct (type, size) pair goes to the startup trace as an
++// "xmem_transfer" event with the caller as module+RVA, so a run with the executable records the values it passes.
++BOOL WINAPI XMemTransferMemory(uint32_t type, SIZE_T size) {
++    static std::atomic<bool> warned{false};
++    if (!warned.exchange(true, std::memory_order_relaxed)) {
++        std::fprintf(stderr,
++                     "[rt] xmem: XMemTransferMemory(type %u, %zu bytes): a PC has no title/system memory partition; "
++                     "returning TRUE without moving anything (logged once)\n",
++                     type, static_cast<size_t>(size));
++    }
++    if (rt::startup_trace::enabled()) {
++        static std::mutex mutex;
++        static std::set<std::pair<uint32_t, uint64_t>> seen;
++        bool first = false;
++        {
++            const std::lock_guard lock(mutex);
++            first = seen.insert({type, static_cast<uint64_t>(size)}).second;
++        }
++        if (first) {
++            rt::startup_trace::event(
++                "xmem_transfer",
++                "\"api\":\"XMemTransferMemory\",\"type\":" + std::to_string(type) +
++                    ",\"size\":" + std::to_string(static_cast<uint64_t>(size)) + ",\"caller\":" +
++                    rt::startup_trace::quote(
++                        rt::startup_trace::where(reinterpret_cast<uint64_t>(_ReturnAddress()))));
++        }
++    }
++    return TRUE;
++}
++
++// kernel32!VirtualAlloc as a title calls it. The console's allocation type has two bits of its own, MEM_GRAPHICS
++// (0x10000000, memory the GPU reads) and MEM_TITLE (0x40000000, the title's own heap). On a PC the host rejects both
++// with ERROR_INVALID_PARAMETER (measured on Windows 11 26200: VirtualAlloc(NULL, 64 KiB, MEM_COMMIT | MEM_RESERVE |
++// 0x10000000, PAGE_READWRITE) returns NULL; so does 0x40000000), so an engine allocating its heaps this way gets
++// NULL at boot. Both are hints about where the memory lives; the host has no such split, so they are dropped and
++// the rest is passed through. The PAGE_GRAPHICS_* protection bits are dropped (host_protect). Not done: whether
++// graphics memory has to come from an arena the D3D12 layer can see (#313).
++constexpr DWORD kMemGraphics = 0x10000000;
++constexpr DWORD kMemTitle = 0x40000000;
++
++LPVOID WINAPI TitleVirtualAlloc(LPVOID address, SIZE_T size, DWORD allocation_type, DWORD protect) {
++    return VirtualAlloc(address, size, allocation_type & ~(kMemGraphics | kMemTitle), host_protect(protect));
++}
++
++}  // namespace
++
++#define TITLE_VIRTUAL_ALLOC(dll) {dll, "VirtualAlloc", reinterpret_cast<void*>(&TitleVirtualAlloc)}
++
++// The classic libraries and the memory api sets a title's imports name.
++SHIM_TABLE(title_memory,
++    TITLE_VIRTUAL_ALLOC("kernel32.dll"),
++    TITLE_VIRTUAL_ALLOC("kernelbase.dll"),
++    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-0.dll"),
++    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-1.dll"),
++    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-2.dll"),
++    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-3.dll"),
++    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-4.dll"),
++    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-5.dll"),
++    TITLE_VIRTUAL_ALLOC("api-ms-win-core-memory-l1-1-6.dll"),
++);
++
++SHIM_TABLE(xmem,
++    {"xmem.dll", "XMemAlloc", reinterpret_cast<void*>(&XMemAlloc)},
++    {"xmem.dll", "XMemFree", reinterpret_cast<void*>(&XMemFree)},
++    {"xmem.dll", "XMemVirtualQuery", reinterpret_cast<void*>(&XMemVirtualQuery)},
++    {"xmem.dll", "XMemGetWorkingSetStatistics", reinterpret_cast<void*>(&XMemGetWorkingSetStatistics)},
++    {"xmem.dll", "XMemVirtualAlloc", reinterpret_cast<void*>(&XMemVirtualAlloc)},
++    {"xmem.dll", "XMemGetWriteWatch", reinterpret_cast<void*>(&XMemGetWriteWatch)},
++    {"xmem.dll", "XMemResetWriteWatch", reinterpret_cast<void*>(&XMemResetWriteWatch)},
++    {"xmem.dll", "XMemTransferMemory", reinterpret_cast<void*>(&XMemTransferMemory)},
 +    {"xmem.dll", "XMemAllocatePhysicalPages", reinterpret_cast<void*>(&XMemAllocatePhysicalPages)},
 +    {"xmem.dll", "XMemMapPhysicalPages", reinterpret_cast<void*>(&XMemMapPhysicalPages)},
 +    {"xmem.dll", "XMemMapPhysicalPagesScatter", reinterpret_cast<void*>(&XMemMapPhysicalPagesScatter)},
@@ -4092,11 +5100,10 @@ index a1061af..7f03d3f 100644
 +    {"xmem.dll", "XMemIsToolsMemAvailable", reinterpret_cast<void*>(&XMemIsToolsMemAvailable)},
 +    {"xmem.dll", "XMemAllocDefault", reinterpret_cast<void*>(&XMemAllocDefault)},
 +    {"xmem.dll", "XMemFreeDefault", reinterpret_cast<void*>(&XMemFreeDefault)},
- );
-diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
-index b75baf1..650d2fb 100644
---- a/runtime/src/main.cpp
-+++ b/runtime/src/main.cpp
++);
+diff -ruN a/runtime/src/main.cpp src/runtime/src/main.cpp
+--- a/runtime/src/main.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/src/main.cpp	2026-11-23 19:18:27.998769000 -0300
 @@ -20,6 +20,11 @@
  
  #include <cstdio>
@@ -4106,10 +5113,10 @@ index b75baf1..650d2fb 100644
 +#include <io.h>
 +#include <fcntl.h>
 +#include <atomic>
+ #include <exception>
  #include <filesystem>
  #include <map>
- #include <string>
-@@ -47,6 +52,16 @@ const char* binding_name(rt::Binding b) {
+@@ -48,6 +53,16 @@
      }
  }
  
@@ -4126,7 +5133,7 @@ index b75baf1..650d2fb 100644
  int usage() {
      std::fprintf(stderr,
                   "usage: gta6rt --dry-run <image> [--game-dir DIR] [--overlay DIR] [--mods DIR] [--archetype-lookup RVA[,ARG]] [--view-mode-getter RVA] [--trace FILE]\n"
-@@ -57,7 +72,470 @@ int usage() {
+@@ -58,7 +73,551 @@
  
  }  // namespace
  
@@ -4141,6 +5148,8 @@ index b75baf1..650d2fb 100644
 +extern "C" long gta6rt_dstorage_total();
 +extern "C" long gta6rt_dstorage_pending();
 +static const unsigned long long g_start_tick = GetTickCount64();
++static HANDLE g_gate_event = nullptr;
++static unsigned long long g_gate_wait = 0, g_gate_open = 0;
 +struct BpEntry { unsigned long long addr; unsigned char original; };
 +static BpEntry g_bps[16];
 +static int g_bp_count = 0;
@@ -4158,8 +5167,25 @@ index b75baf1..650d2fb 100644
 +
 +DWORD WINAPI bp_installer(LPVOID) {
 +    char buf[512];
-+    if (!GetEnvironmentVariableA("LEONIDA_BP", buf, sizeof(buf))) return 0;
++    buf[0] = 0;
++    GetEnvironmentVariableA("LEONIDA_BP", buf, sizeof(buf));
++    char probe_gate[4];
++    if (!buf[0] && !GetEnvironmentVariableA("LEONIDA_GATE", probe_gate, sizeof(probe_gate))) return 0;
 +    std::vector<unsigned long long> wanted;
++    {   // LEONIDA_GATE=<wait addr>,<open addr>: hold every call of the first function until the second has been entered once.
++        char gate[64];
++        if (GetEnvironmentVariableA("LEONIDA_GATE", gate, sizeof(gate))) {
++            char* comma = std::strchr(gate, ',');
++            if (comma) {
++                *comma = 0;
++                g_gate_wait = std::strtoull(gate, nullptr, 16);
++                g_gate_open = std::strtoull(comma + 1, nullptr, 16);
++                g_gate_event = CreateEventW(nullptr, TRUE, FALSE, nullptr);
++                wanted.push_back(g_gate_wait);
++                wanted.push_back(g_gate_open);
++            }
++        }
++    }
 +    for (char* tok = std::strtok(buf, ","); tok && wanted.size() < 16; tok = std::strtok(nullptr, ","))
 +        wanted.push_back(std::strtoull(tok, nullptr, 16));
 +    for (int tries = 0; tries < 600 && g_bp_count < static_cast<int>(wanted.size()); ++tries) {
@@ -4240,6 +5266,35 @@ index b75baf1..650d2fb 100644
 +        for (int i = 0; i < g_bp_count; ++i)
 +            if (g_bps[i].addr == ep->ContextRecord->Rip) {
 +                log_bp_hit(g_bps[i], *ep->ContextRecord);
++                if (g_gate_event) {
++                    if (g_bps[i].addr == g_gate_open) {
++                        SetEvent(g_gate_event);
++                        static std::atomic<bool> said{false};
++                        if (!said.exchange(true)) std::fprintf(stderr, "[gate] opened by %llx%s", g_bps[i].addr, "\n");
++                    } else if (g_bps[i].addr == g_gate_wait) {
++                        static std::atomic<int> waits{0};
++                        if (WaitForSingleObject(g_gate_event, 0) != WAIT_OBJECT_0 && waits.fetch_add(1) < 1)
++                            std::fprintf(stderr, "[gate] frame loop held until the init on the main thread passes its wait loop%s", "\n");
++                        {   // what the program library holds while the frame is held
++                            auto rd8 = [](unsigned long long a) { unsigned long long v = 0; SIZE_T g = 0; ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<const void*>(a), &v, 8, &g); return v; };
++                            const unsigned long long lib = rd8(0x1476667b8ull), progs = lib ? rd8(lib + 0xc78) : 0;
++                            int nonzero = 0, total = 0;
++                            for (int k = 0; progs && k < 512; ++k) { ++total; if (rd8(progs + k * 8)) ++nonzero; }
++                            std::string unset;
++                            for (int k = 0; progs && k < 128; ++k) if (!rd8(progs + k * 8)) { char one[16]; std::snprintf(one, sizeof(one), " %d", k); unset += one; }
++                            std::fprintf(stderr, "[gate] unset program indices below 128:%s%s", unset.c_str(), "\n");
++                            static std::atomic<int> seen{0};
++                            if (seen.fetch_add(1) < 3)
++                                std::fprintf(stderr, "[gate] program array %llx: %d of %d entries set (library %llx)%s", progs, nonzero, total, lib, "\n");
++                        }
++                        {
++                            static const DWORD ms = [] { char b[16]; return GetEnvironmentVariableA("LEONIDA_GATE_MS", b, sizeof(b)) ? static_cast<DWORD>(std::strtoul(b, nullptr, 10)) : 180000u; }();
++                            static const ULONGLONG started = GetTickCount64();
++                            const ULONGLONG used = GetTickCount64() - started;
++                            if (used < ms) WaitForSingleObject(g_gate_event, static_cast<DWORD>(ms - used));
++                        }
++                    }
++                }
 +                { DWORD o = 0; VirtualProtect(reinterpret_cast<void*>(g_bps[i].addr), 1, PAGE_EXECUTE_READWRITE, &o); }
 +                *reinterpret_cast<unsigned char*>(g_bps[i].addr) = g_bps[i].original;
 +                ep->ContextRecord->EFlags |= 0x100;  // single step, then plant the int3 again
@@ -4263,13 +5318,46 @@ index b75baf1..650d2fb 100644
 +        if (enabled && rip >= 0x140b5a5d0ull && rip < 0x140b5adb4ull) {
 +            const unsigned long long tls0 = *reinterpret_cast<const unsigned long long*>(__readgsqword(0x58));
 +            const unsigned long long ctx = *reinterpret_cast<const unsigned long long*>(tls0 + 0x12a8);
-+            const unsigned long long prog = *reinterpret_cast<const unsigned long long*>(0x1475d59c0ull);
++            unsigned long long prog = *reinterpret_cast<const unsigned long long*>(0x1475d59c0ull);
++            {   // prefer a program from the shader library's own array (the first one the title has set)
++                const unsigned long long lib = *reinterpret_cast<const unsigned long long*>(0x1476667b8ull);
++                const unsigned long long arr = lib ? *reinterpret_cast<const unsigned long long*>(lib + 0xc78) : 0;
++                for (int k = 0; arr && k < 512; ++k) {
++                    const unsigned long long v = *reinterpret_cast<const unsigned long long*>(arr + k * 8);
++                    if (v) { prog = v; break; }
++                }
++            }
 +            if (ctx && prog) {
 +                *reinterpret_cast<unsigned long long*>(ctx + 0x12328) = prog;
 +                ep->ContextRecord->Rax = prog;
 +                static std::atomic<int> n{0};
 +                if (n.fetch_add(1) < 3) std::fprintf(stderr, "[rt] LEONIDA_HACK_PROGRAM: gave the draw context program %llx%s", prog, "\n");
 +                return EXCEPTION_CONTINUE_EXECUTION;
++            }
++        }
++    }
++    // DIAGNOSTIC (LEONIDA_ABORT_FRAME=1): when the draw flush finds no program (null read at +0x68 in FUN_140b5a5d0), abandon the
++    // frame job (FUN_144fd1b20) as if it had returned 0, so the title carries on to the step that registers its programs.
++    if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && ep->ExceptionRecord->NumberParameters > 1 &&
++        ep->ExceptionRecord->ExceptionInformation[1] == 0x68 && ep->ContextRecord->Rax == 0 && ep->ContextRecord->Rip >= 0x140b5a5d0ull &&
++        ep->ContextRecord->Rip < 0x140b5adb4ull) {
++        static const bool enabled = [] { char b[4]; return GetEnvironmentVariableA("LEONIDA_ABORT_FRAME", b, sizeof(b)) && b[0] == '1'; }();
++        if (enabled) {
++            CONTEXT uc = *ep->ContextRecord;
++            for (int depth = 0; depth < 32; ++depth) {
++                DWORD64 base = 0;
++                PRUNTIME_FUNCTION rf = RtlLookupFunctionEntry(uc.Rip, &base, nullptr);
++                if (!rf) break;
++                const bool target = base == 0x140000000ull && base + rf->BeginAddress == 0x144fd1b20ull;
++                PVOID hd = nullptr; DWORD64 fr = 0;
++                RtlVirtualUnwind(UNW_FLAG_NHANDLER, base, uc.Rip, rf, &uc, &hd, &fr, nullptr);
++                if (target) {
++                    uc.Rax = 0;
++                    *ep->ContextRecord = uc;
++                    static std::atomic<int> n{0};
++                    if (n.fetch_add(1) < 5) std::fprintf(stderr, "[rt] LEONIDA_ABORT_FRAME: frame job abandoned (no program bound)%s", "\n");
++                    return EXCEPTION_CONTINUE_EXECUTION;
++                }
 +            }
 +        }
 +    }
@@ -4597,7 +5685,7 @@ index b75baf1..650d2fb 100644
      std::filesystem::path image, game_dir, overlay_dir, mods_dir;
      uint32_t archetype_lookup_rva = 0;  // --archetype-lookup RVA[,ARG]: the game's archetype lookup by hash
      int archetype_lookup_arg = 0;
-@@ -155,6 +633,20 @@ int wmain(int argc, wchar_t** argv) {
+@@ -156,6 +715,20 @@
      try {
          rt::Loader loader(game_dir);
          rt::Module& main_module = loader.load(image);  // maps, binds and installs TLS; runs no image code
@@ -4618,11 +5706,10 @@ index b75baf1..650d2fb 100644
          // The mods' archetype swaps (docs/modding.md): hooked here, before any image code runs, when the lookup's RVA
          // for this executable is given. The count of redirected calls shows whether the RVA is the real lookup.
          if (view_mode_getter_rva) {
-diff --git a/runtime/src/pe_loader.cpp b/runtime/src/pe_loader.cpp
-index bfeab4c..a9a9b46 100644
---- a/runtime/src/pe_loader.cpp
-+++ b/runtime/src/pe_loader.cpp
-@@ -108,8 +108,29 @@ IMAGE_TLS_DIRECTORY64* tls_directory(Module& m) {
+diff -ruN a/runtime/src/pe_loader.cpp src/runtime/src/pe_loader.cpp
+--- a/runtime/src/pe_loader.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/src/pe_loader.cpp	2026-11-23 19:14:31.583521500 -0300
+@@ -126,8 +126,29 @@
  // reuses that index for the mapped image. When more than one manually mapped module uses static TLS at once, the loader
  // clones gta6rt_tls_host.dll to a per-process temporary path on demand and loads it, so the OS assigns an independent
  // module TLS index for each simultaneous module (up to kMaxMappedTlsModules).
@@ -4652,7 +5739,7 @@ index bfeab4c..a9a9b46 100644
  void** module_tls_slots() { return reinterpret_cast<void**>(__readgsqword(0x58)); }
  
  void __cdecl on_host_thread_event(DWORD reason);
-@@ -117,6 +138,7 @@ void __cdecl on_host_thread_event(DWORD reason);
+@@ -135,6 +156,7 @@
  struct TlsHostModule {
      HMODULE module = nullptr;
      DWORD index = TLS_OUT_OF_INDEXES;
@@ -4660,7 +5747,7 @@ index bfeab4c..a9a9b46 100644
  };
  
  std::filesystem::path tls_host_base_path() {
-@@ -149,20 +171,39 @@ struct TlsCloneRecord {
+@@ -167,20 +189,39 @@
  
  std::mutex g_tls_alloc_mutex;
  std::array<TlsHostModule, kMaxMappedTlsModules> g_tls_hosts{};
@@ -4708,7 +5795,7 @@ index bfeab4c..a9a9b46 100644
  }
  
  void cleanup_tls_clones_at_exit() { cleanup_tls_clones_internal(); }
-@@ -186,10 +227,14 @@ DWORD clone_owner_pid(const wchar_t* name) {
+@@ -204,10 +245,14 @@
  bool process_alive(DWORD pid) {
      // PROCESS_QUERY_LIMITED_INFORMATION needs no handle rights a normal process could deny; a failure means the
      // process is gone. A still-mapped or still-open file is caught by the checks below even for a misjudged PID.
@@ -4724,7 +5811,7 @@ index bfeab4c..a9a9b46 100644
  }
  
  // Deletes clones left behind by processes that have exited. Deletion is scoped to files whose owner is gone: a
-@@ -244,45 +289,66 @@ TlsHostModule load_tls_host_image(const std::filesystem::path& path, bool hook_t
+@@ -262,45 +307,66 @@
      if (hook_thread_events) {
          // Only the primary helper reports thread attach/detach events; on_host_thread_event iterates all active slots.
          using SetThreadEvent = void(__cdecl*)(void(__cdecl*)(DWORD));
@@ -4813,7 +5900,7 @@ index bfeab4c..a9a9b46 100644
  
      // Open the guard before the clone exists under its final name and hold it across LoadLibraryExW: the rename
      // below needs DELETE access, which the handle's FILE_SHARE_DELETE grants, and no purge can remove the clone
-@@ -302,18 +368,34 @@ TlsHostModule ensure_tls_host(size_t slot) {
+@@ -320,18 +386,34 @@
      TlsHostModule loaded = load_tls_host_image(clone_path, false);
      CloseHandle(guard);
  
@@ -4856,7 +5943,7 @@ index bfeab4c..a9a9b46 100644
      g_tls_hosts[slot] = loaded;
      return g_tls_hosts[slot];
  }
-@@ -327,7 +409,7 @@ struct ThreadTlsSlot {
+@@ -347,7 +429,7 @@
  };
  
  // Per-thread installation state for each reserved TLS slot.
@@ -4865,7 +5952,7 @@ index bfeab4c..a9a9b46 100644
  
  // Orders the TLS owners' publication, their `initialised` flags and their retirement against the thread events. Shared
  // in on_host_thread_event, exclusive only for those short writes (no allocation and no call that takes the Windows
-@@ -346,10 +428,185 @@ struct ExclusiveTlsLock {
+@@ -366,10 +448,185 @@
      ExclusiveTlsLock& operator=(const ExclusiveTlsLock&) = delete;
  };
  
@@ -5051,8 +6138,8 @@ index bfeab4c..a9a9b46 100644
 +    if (slot >= kTlsSlotCount) return;
      ThreadTlsSlot& entry = g_thread_tls_slots[slot];
      if (!entry.module && !entry.block) return;
-     if (entry.block) {
-@@ -401,7 +658,7 @@ bool has_existing_thread_block(DWORD thread, const Module& m) {
+     if (entry.ga_view) {
+@@ -425,7 +682,7 @@
  }
  
  void install_thread_block(Module& m) {
@@ -5061,7 +6148,7 @@ index bfeab4c..a9a9b46 100644
      const size_t slot = m.tls_slot;
      ThreadTlsSlot& entry = g_thread_tls_slots[slot];
      if (entry.module == &m && entry.generation == m.tls_generation) return;
-@@ -443,7 +700,7 @@ void install_thread_block(Module& m) {
+@@ -520,7 +777,7 @@
  }
  
  void uninstall_thread_block(Module& m) {
@@ -5070,7 +6157,7 @@ index bfeab4c..a9a9b46 100644
      const size_t slot = m.tls_slot;
      ThreadTlsSlot& entry = g_thread_tls_slots[slot];
      if (entry.module != &m || entry.generation != m.tls_generation) return;
-@@ -753,18 +1010,32 @@ void __cdecl on_host_thread_event(DWORD reason) {
+@@ -830,18 +1087,32 @@
          } catch (const std::exception& e) {
              std::fprintf(stderr, "[rt] loader: thread attach: %s\n", e.what());
          }
@@ -5105,7 +6192,7 @@ index bfeab4c..a9a9b46 100644
      } else if (reason == DLL_THREAD_DETACH) {
          // The blocks load() gave this thread while it was already running come out first (they can sit on top of
          // an older module's block in the same slot).
-@@ -773,7 +1044,9 @@ void __cdecl on_host_thread_event(DWORD reason) {
+@@ -850,7 +1121,9 @@
          } catch (const std::exception& e) {
              std::fprintf(stderr, "[rt] loader: thread detach: %s\n", e.what());
          }
@@ -5116,7 +6203,7 @@ index bfeab4c..a9a9b46 100644
              Module* m = g_tls_slot_owners[i].load();
              if (m && g_thread_tls_slots[i].module == m &&
                  g_thread_tls_slots[i].generation == m->tls_generation) {
-@@ -877,6 +1150,26 @@ void redirect_pc_to_file_header_at(const void* resolved) {
+@@ -954,6 +1227,26 @@
  // Declared in pe_loader.h; the body needs the internal clone registry above.
  void cleanup_tls_clones() { cleanup_tls_clones_internal(); }
  
@@ -5143,7 +6230,7 @@ index bfeab4c..a9a9b46 100644
  namespace {
  bool lookup_in_loader(void* ctx, uint64_t address, std::string& module, uint32_t& rva) {
      return static_cast<Loader*>(ctx)->find_address(address, module, rva);
-@@ -936,7 +1229,7 @@ Loader::~Loader() {
+@@ -1032,7 +1325,7 @@
      shims::remove_module_lookup(this);
      for (auto* m : order_) {
          // TLS state must go away before the image and its TLS block are unmapped.
@@ -5152,7 +6239,7 @@ index bfeab4c..a9a9b46 100644
              // Retired first, under the lock: no thread event installs it or runs its callbacks after this, and a
              // thread that still holds a copy frees it when it ends (on_host_thread_event).
              {
-@@ -1294,7 +1587,7 @@ Module& Loader::map_image(const std::filesystem::path& path, const std::string&
+@@ -1441,7 +1734,7 @@
  // Only the OS loader can allocate that module index, so the loader reuses the index the OS assigned to
  // gta6rt_tls_host.dll and maps a fresh clone of the helper for every additional simultaneous TLS module, each clone
  // getting its own index. All kMaxMappedTlsModules slots can be live at once; a further module is rejected rather than
@@ -5161,7 +6248,7 @@ index bfeab4c..a9a9b46 100644
  void Loader::initialize_tls(Module& m) {
      auto* tls = tls_directory(m);
      if (!tls) return;
-@@ -1318,26 +1611,51 @@ void Loader::initialize_tls(Module& m) {
+@@ -1465,26 +1758,51 @@
  
      if (!module_tls_slots()) throw std::runtime_error(m.name + ": this thread has no TLS array");
  
@@ -5228,11 +6315,10 @@ index bfeab4c..a9a9b46 100644
  
          // The fields are complete before a thread event can see the owner.
          ExclusiveTlsLock lock;
-diff --git a/runtime/src/pe_loader.h b/runtime/src/pe_loader.h
-index 812b731..acdeffd 100644
---- a/runtime/src/pe_loader.h
-+++ b/runtime/src/pe_loader.h
-@@ -156,6 +156,14 @@ private:
+diff -ruN a/runtime/src/pe_loader.h src/runtime/src/pe_loader.h
+--- a/runtime/src/pe_loader.h	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/src/pe_loader.h	2026-11-23 19:14:31.619529500 -0300
+@@ -174,6 +174,14 @@
  // skips the atexit table. Call it when no mapped code can run again: it unmaps the helper images.
  void cleanup_tls_clones();
  
@@ -5247,26 +6333,21 @@ index 812b731..acdeffd 100644
  std::string lower(std::string s);
  
  }  // namespace rt
-diff --git a/runtime/src/shader_library.h b/runtime/src/shader_library.h
-index c4cba63..5ec4f12 100644
---- a/runtime/src/shader_library.h
-+++ b/runtime/src/shader_library.h
-@@ -740,6 +740,11 @@ public:
-         try {
-             const auto ignore = [](const std::string&) { return false; };
-             if (std::ifstream(dir / "fspx/index.json", std::ios::binary)) load_index(dir / "fspx", "fspx/", ignore);
-+            // XboxCompat: the compute programs inside XboxBvhBuilder.dll (52 FSSM programs; see the mix notes) live in
-+            // <dir>/bvh, translated with the same tools as the game's own shaders.
-+            if (std::ifstream(dir / "bvh/index.json", std::ios::binary)) load_index(dir / "bvh", "bvh/", ignore);
-+            // <dir>/exe: shader containers embedded in the executable itself (its fullscreen/UI programs).
-+            if (std::ifstream(dir / "exe/index.json", std::ios::binary)) load_index(dir / "exe", "exe/", ignore);
+diff -ruN a/runtime/src/shader_library.h src/runtime/src/shader_library.h
+--- a/runtime/src/shader_library.h	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/src/shader_library.h	2026-11-23 19:14:58.057333900 -0300
+@@ -740,7 +740,7 @@
          } catch (...) {
+             return fail("index.json could not be read");
          }
-         return true;
-diff --git a/runtime/src/tls_host.cpp b/runtime/src/tls_host.cpp
-index ab234cb..6cf5e70 100644
---- a/runtime/src/tls_host.cpp
-+++ b/runtime/src/tls_host.cpp
+-        for (const char* folder : {"fspx", "bvh"}) {
++        for (const char* folder : {"fspx", "bvh", "exe"}) {
+             try {
+                 const auto ignore = [](const std::string&) { return false; };
+                 const std::filesystem::path sub = dir / folder;
+diff -ruN a/runtime/src/tls_host.cpp src/runtime/src/tls_host.cpp
+--- a/runtime/src/tls_host.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/src/tls_host.cpp	2026-11-23 13:03:31.577635800 -0300
 @@ -5,6 +5,12 @@
  // __declspec(thread) access in mapped code reads a valid TEB slot. The anchor itself is never used; the loader saves
  // and restores the helper's own block, so the helper's CRT TLS state is not disturbed.
@@ -5280,7 +6361,7 @@ index ab234cb..6cf5e70 100644
  // The Windows loader also calls this DLL's DllMain with DLL_THREAD_ATTACH on every new thread (after it has built that
  // thread's TLS array) and with DLL_THREAD_DETACH when a thread exits (before it frees the array). The loader registers
  // a callback here so it can give each new thread its own copy of the mapped image's TLS, and put this DLL's block back
-@@ -26,6 +32,13 @@ void* volatile g_thread_event = nullptr;
+@@ -26,6 +32,13 @@
  // the linker without making DllMain touch TLS during thread attach/detach.
  extern "C" __declspec(dllexport) void gta6rt_tls_host_keep() { g_tls_host_anchor = 1; }
  
@@ -5294,11 +6375,10 @@ index ab234cb..6cf5e70 100644
  // Called by the loader. `fn` runs inside DllMain (under the Windows loader lock) for DLL_THREAD_ATTACH and
  // DLL_THREAD_DETACH; nullptr stops the calls.
  extern "C" __declspec(dllexport) void gta6rt_tls_host_set_thread_event(ThreadEventFn fn) {
-diff --git a/runtime/src/vulkan_backend.h b/runtime/src/vulkan_backend.h
-index e659a76..e3cad17 100644
---- a/runtime/src/vulkan_backend.h
-+++ b/runtime/src/vulkan_backend.h
-@@ -1239,6 +1239,14 @@ public:
+diff -ruN a/runtime/src/vulkan_backend.h src/runtime/src/vulkan_backend.h
+--- a/runtime/src/vulkan_backend.h	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/src/vulkan_backend.h	2026-11-23 14:36:42.060947500 -0300
+@@ -1239,6 +1239,14 @@
          replay_.heap_base = heap_base;
      }
  
@@ -5313,11 +6393,10 @@ index e659a76..e3cad17 100644
      // Zeroed memory for unbound vertex and index buffers to read (ReplayFunctions::zero_buffer).
      void set_zero_page(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size) {
          std::unique_lock lock(resource_mutex_);
-diff --git a/runtime/src/vulkan_replay.h b/runtime/src/vulkan_replay.h
-index 1e0e598..933c855 100644
---- a/runtime/src/vulkan_replay.h
-+++ b/runtime/src/vulkan_replay.h
-@@ -749,6 +749,7 @@ struct ComputePipeline {
+diff -ruN a/runtime/src/vulkan_replay.h src/runtime/src/vulkan_replay.h
+--- a/runtime/src/vulkan_replay.h	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/src/vulkan_replay.h	2026-11-23 19:14:31.725736100 -0300
+@@ -749,6 +749,7 @@
      VkPipelineLayout layout = VK_NULL_HANDLE;
      std::uint64_t code_base = 0;
      VkDescriptorSet bindless_set = VK_NULL_HANDLE;  // set 0 of the layout, bound at every dispatch; null: none
@@ -5325,7 +6404,7 @@ index 1e0e598..933c855 100644
  };
  
  // A graphics pipeline as replay needs it: the formats its attachments must have and which vertex-input slots it
-@@ -758,6 +759,7 @@ struct GraphicsPipeline {
+@@ -758,6 +759,7 @@
      VkPipelineLayout layout = VK_NULL_HANDLE;
      VkShaderStageFlags push_stages = 0;   // the layout's push-constant range; vkCmdPushConstants must name the same
      std::uint64_t code_base = 0;
@@ -5333,7 +6412,7 @@ index 1e0e598..933c855 100644
      VkDescriptorSet bindless_set = VK_NULL_HANDLE;  // set 0 of the layout, bound at every draw; null: none
      std::vector<VkFormat> color_formats;  // by render-target slot
      VkFormat depth_format = VK_FORMAT_UNDEFINED;
-@@ -867,6 +869,20 @@ struct ReplayFunctions {
+@@ -867,6 +869,20 @@
      VkDeviceSize zero_offset = 0;
      VkDeviceSize zero_size = 0;
      std::uint64_t heap_base = 0;  // device address of the GPU address arena (push-constant dwords 32-33)
@@ -5354,7 +6433,7 @@ index 1e0e598..933c855 100644
      // Resolves available binary-occlusion queries to 64-bit 0/1 values, outside conditional rendering.
      std::function<void(VkCommandBuffer, VkQueryPool, std::uint32_t first, std::uint32_t count,
                         VkBuffer dst, VkDeviceSize offset)> resolve_binary_occlusion;
-@@ -3937,8 +3953,8 @@ inline void emit(const PreparedList& prepared, VkCommandBuffer command_buffer, c
+@@ -3940,8 +3956,8 @@
                              vk.bind_descriptor_sets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, p.pipeline.layout, 0,
                                                      1, &set0, 0, nullptr);
                          }
@@ -5365,7 +6444,7 @@ index 1e0e598..933c855 100644
                      }
                      for (std::uint32_t k = 0; k < ind->max_count; ++k) {
                          vk.dispatch_indirect(command_buffer,
-@@ -4022,7 +4038,8 @@ inline void emit(const PreparedList& prepared, VkCommandBuffer command_buffer, c
+@@ -4025,7 +4041,8 @@
                  vk.bind_descriptor_sets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, p.pipeline.layout, 0, 1,
                                          &set0, 0, nullptr);
              }
@@ -5375,7 +6454,7 @@ index 1e0e598..933c855 100644
              vk.dispatch(command_buffer, dispatch->x, dispatch->y, dispatch->z);
          } else if (const auto* draw = std::get_if<Draw>(&command)) {
              const detail::PreparedDraw& d = prepared.draws[p.draw];
-@@ -4075,7 +4092,8 @@ inline void emit(const PreparedList& prepared, VkCommandBuffer command_buffer, c
+@@ -4078,7 +4095,8 @@
                  vk.bind_descriptor_sets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics.layout, 0, 1,
                                          &set0, 0, nullptr);
              }
@@ -5385,11 +6464,10 @@ index 1e0e598..933c855 100644
              // Translated vertex shaders write D3D clip coordinates (y up); a negative-height viewport keeps the
              // image upright, and winding as D3D12 sees it.
              const Viewport& v = draw->viewport;
-diff --git a/runtime/test/check_tiny_frame.py b/runtime/test/check_tiny_frame.py
-index 2a734e4..b67e468 100644
---- a/runtime/test/check_tiny_frame.py
-+++ b/runtime/test/check_tiny_frame.py
-@@ -124,7 +124,10 @@ def main():
+diff -ruN a/runtime/test/check_tiny_frame.py src/runtime/test/check_tiny_frame.py
+--- a/runtime/test/check_tiny_frame.py	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/check_tiny_frame.py	2026-11-23 12:59:15.304556500 -0300
+@@ -124,7 +124,10 @@
              print("SKIP: no usable Vulkan device (the probe test skipped)")
              return SKIP
  
@@ -5401,11 +6479,9 @@ index 2a734e4..b67e468 100644
      if options.queue_test_settings:
          environment.update(QUEUE_TEST_SETTINGS)
      run = subprocess.run([*options.runner, options.loader, "--run", os.path.basename(options.guest), "--trace-d3d12"],
-diff --git a/runtime/test/check_tls_clone_cleanup.cmake b/runtime/test/check_tls_clone_cleanup.cmake
-new file mode 100644
-index 0000000..21130ce
---- /dev/null
-+++ b/runtime/test/check_tls_clone_cleanup.cmake
+diff -ruN a/runtime/test/check_tls_clone_cleanup.cmake src/runtime/test/check_tls_clone_cleanup.cmake
+--- a/runtime/test/check_tls_clone_cleanup.cmake	1969-12-31 21:00:00.000000000 -0300
++++ b/runtime/test/check_tls_clone_cleanup.cmake	2026-11-23 13:03:31.581635900 -0300
 @@ -0,0 +1,40 @@
 +# gta6rt --dry-run, --init and --dry-run again with tiny_tls_clones.exe, which maps three TLS modules and so makes a
 +# helper clone for one of its DLLs. After each run no clone file of that run's process may remain in the temporary
@@ -5447,11 +6523,9 @@ index 0000000..21130ce
 +  endif()
 +  set(previous "${pid}")
 +endforeach()
-diff --git a/runtime/test/check_tls_index0.cmake b/runtime/test/check_tls_index0.cmake
-new file mode 100644
-index 0000000..a1ca31b
---- /dev/null
-+++ b/runtime/test/check_tls_index0.cmake
+diff -ruN a/runtime/test/check_tls_index0.cmake src/runtime/test/check_tls_index0.cmake
+--- a/runtime/test/check_tls_index0.cmake	1969-12-31 21:00:00.000000000 -0300
++++ b/runtime/test/check_tls_index0.cmake	2026-11-23 13:03:31.584636900 -0300
 @@ -0,0 +1,46 @@
 +# gta6rt --run and --init with tiny_tls_ga.exe, an executable built /GA whose thread_local reads go straight to
 +# ThreadLocalStoragePointer[0]. --run: the game thread and a second thread both read the template value 42 and
@@ -5499,11 +6573,10 @@ index 0000000..a1ca31b
 +    message(FATAL_ERROR "--${mode} without the reservation returned ${code}\n${output}\n${error}")
 +  endif()
 +endforeach()
-diff --git a/runtime/test/d3d12_buffer_uav_test.cpp b/runtime/test/d3d12_buffer_uav_test.cpp
-index a2fa903..c2ea4fb 100644
---- a/runtime/test/d3d12_buffer_uav_test.cpp
-+++ b/runtime/test/d3d12_buffer_uav_test.cpp
-@@ -161,7 +161,7 @@ int run_shaders(vktest::Device& d, const std::filesystem::path& root_dir, unsign
+diff -ruN a/runtime/test/d3d12_buffer_uav_test.cpp src/runtime/test/d3d12_buffer_uav_test.cpp
+--- a/runtime/test/d3d12_buffer_uav_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_buffer_uav_test.cpp	2026-11-23 12:59:15.305556500 -0300
+@@ -161,7 +161,7 @@
      EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
      Ref<ID3D12Device> device;
      EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5512,11 +6585,10 @@ index a2fa903..c2ea4fb 100644
      rt::d3d12::set_device_outer(inner, device.p);
      EXPECT(rt::d3d12::bindless_set(device.p) != VK_NULL_HANDLE);
  
-diff --git a/runtime/test/d3d12_compute_test.cpp b/runtime/test/d3d12_compute_test.cpp
-index 1c4e3ee..64937f0 100644
---- a/runtime/test/d3d12_compute_test.cpp
-+++ b/runtime/test/d3d12_compute_test.cpp
-@@ -307,7 +307,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_compute_test.cpp src/runtime/test/d3d12_compute_test.cpp
+--- a/runtime/test/d3d12_compute_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_compute_test.cpp	2026-11-23 19:14:31.830774200 -0300
+@@ -321,7 +321,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5525,11 +6597,10 @@ index 1c4e3ee..64937f0 100644
          rt::d3d12::set_device_outer(inner, device.p);
  
          // Root signature: [0] two constants (s4, s5), [1] a root UAV (s6:s7), [2] a one-CBV table (s8, its 32-bit VA):
-diff --git a/runtime/test/d3d12_debug_markers_test.cpp b/runtime/test/d3d12_debug_markers_test.cpp
-index a87fd03..b5d1a00 100644
---- a/runtime/test/d3d12_debug_markers_test.cpp
-+++ b/runtime/test/d3d12_debug_markers_test.cpp
-@@ -100,7 +100,9 @@ HRESULT make_device(const vktest::Device& d, bool debug_utils, ID3D12Device** ou
+diff -ruN a/runtime/test/d3d12_debug_markers_test.cpp src/runtime/test/d3d12_debug_markers_test.cpp
+--- a/runtime/test/d3d12_debug_markers_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_debug_markers_test.cpp	2026-11-23 12:59:15.307557600 -0300
+@@ -100,7 +100,9 @@
      ID3D12Device* inner = nullptr;
      HRESULT hr = rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner));
      if (FAILED(hr)) return hr;
@@ -5540,7 +6611,7 @@ index a87fd03..b5d1a00 100644
      if (FAILED(hr)) {
          inner->Release();
          return hr;
-@@ -135,6 +137,9 @@ int run_markers(ID3D12Device* device) {
+@@ -135,6 +137,9 @@
      const char ansi[] = "ansi pass and more";
      const wchar_t spans[] = L"spans two lists";
      const std::uint64_t blob[2] = {0x1234, 0x5678};
@@ -5550,11 +6621,10 @@ index a87fd03..b5d1a00 100644
      first->SetMarker(0, frame, sizeof(frame));
      first->SetMarker(0, nullptr, 0);
      first->BeginEvent(1, ansi, 9);  // "ansi pass"
-diff --git a/runtime/test/d3d12_depth24_draw_test.cpp b/runtime/test/d3d12_depth24_draw_test.cpp
-index 436336e..885cefa 100644
---- a/runtime/test/d3d12_depth24_draw_test.cpp
-+++ b/runtime/test/d3d12_depth24_draw_test.cpp
-@@ -263,7 +263,8 @@ int main() {
+diff -ruN a/runtime/test/d3d12_depth24_draw_test.cpp src/runtime/test/d3d12_depth24_draw_test.cpp
+--- a/runtime/test/d3d12_depth24_draw_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_depth24_draw_test.cpp	2026-11-23 12:59:15.309558600 -0300
+@@ -263,7 +263,8 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5564,11 +6634,10 @@ index 436336e..885cefa 100644
          rt::d3d12::set_device_outer(inner, device.p);
  
          D3D12_ROOT_PARAMETER param{};
-diff --git a/runtime/test/d3d12_descriptor_test.cpp b/runtime/test/d3d12_descriptor_test.cpp
-index e995d3e..3011239 100644
---- a/runtime/test/d3d12_descriptor_test.cpp
-+++ b/runtime/test/d3d12_descriptor_test.cpp
-@@ -344,7 +344,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_descriptor_test.cpp src/runtime/test/d3d12_descriptor_test.cpp
+--- a/runtime/test/d3d12_descriptor_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_descriptor_test.cpp	2026-11-23 12:59:15.311559600 -0300
+@@ -344,7 +344,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5577,11 +6646,10 @@ index e995d3e..3011239 100644
          rt::d3d12::set_device_outer(inner, device.p);  // the proxy now owns `inner`
  
          D3D12_FEATURE_DATA_D3D12_OPTIONS8 options8{};
-diff --git a/runtime/test/d3d12_draw_test.cpp b/runtime/test/d3d12_draw_test.cpp
-index 36e2f6e..17902f7 100644
---- a/runtime/test/d3d12_draw_test.cpp
-+++ b/runtime/test/d3d12_draw_test.cpp
-@@ -129,7 +129,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_draw_test.cpp src/runtime/test/d3d12_draw_test.cpp
+--- a/runtime/test/d3d12_draw_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_draw_test.cpp	2026-11-23 12:59:15.313558300 -0300
+@@ -129,7 +129,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5590,11 +6658,10 @@ index 36e2f6e..17902f7 100644
          rt::d3d12::set_device_outer(inner, device.p);
  
          // Root signature: [0] two constants (s0, s1: offset), [1] a root CBV (s2:s3: tint).
-diff --git a/runtime/test/d3d12_f16_halves_test.cpp b/runtime/test/d3d12_f16_halves_test.cpp
-index c2f194e..bbd516e 100644
---- a/runtime/test/d3d12_f16_halves_test.cpp
-+++ b/runtime/test/d3d12_f16_halves_test.cpp
-@@ -222,7 +222,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_f16_halves_test.cpp src/runtime/test/d3d12_f16_halves_test.cpp
+--- a/runtime/test/d3d12_f16_halves_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_f16_halves_test.cpp	2026-11-23 12:59:15.316065600 -0300
+@@ -222,7 +222,7 @@
      EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
      Ref<ID3D12Device> device;
      EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5603,11 +6670,10 @@ index c2f194e..bbd516e 100644
      rt::d3d12::set_device_outer(inner, device.p);
  
      D3D12_VERSIONED_ROOT_SIGNATURE_DESC root_desc{};
-diff --git a/runtime/test/d3d12_first_light_test.cpp b/runtime/test/d3d12_first_light_test.cpp
-index 8dcc2ca..c5aea7f 100644
---- a/runtime/test/d3d12_first_light_test.cpp
-+++ b/runtime/test/d3d12_first_light_test.cpp
-@@ -134,7 +134,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_first_light_test.cpp src/runtime/test/d3d12_first_light_test.cpp
+--- a/runtime/test/d3d12_first_light_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_first_light_test.cpp	2026-11-23 12:59:15.317066300 -0300
+@@ -134,7 +134,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5616,11 +6682,10 @@ index 8dcc2ca..c5aea7f 100644
          rt::d3d12::set_device_outer(inner, device.p);
  
          // No root parameters: the VS applies no matrix and the PS has no bindings (vk_harness pushes zeros too).
-diff --git a/runtime/test/d3d12_fspx_compute_test.cpp b/runtime/test/d3d12_fspx_compute_test.cpp
-index f07b9ee..fb8c387 100644
---- a/runtime/test/d3d12_fspx_compute_test.cpp
-+++ b/runtime/test/d3d12_fspx_compute_test.cpp
-@@ -281,7 +281,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_fspx_compute_test.cpp src/runtime/test/d3d12_fspx_compute_test.cpp
+--- a/runtime/test/d3d12_fspx_compute_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_fspx_compute_test.cpp	2026-11-23 12:59:15.319066200 -0300
+@@ -281,7 +281,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5629,11 +6694,10 @@ index f07b9ee..fb8c387 100644
          rt::d3d12::set_device_outer(inner, device.p);
          if (rt::d3d12::device_push_constants_need_fallback(inner)) {
              std::printf("d3d12_fspx_compute_test: skipped, the PSOs need 144 push-constant bytes and this GPU has %u\n",
-diff --git a/runtime/test/d3d12_geometry_test.cpp b/runtime/test/d3d12_geometry_test.cpp
-index 6d8bb59..1cfe035 100644
---- a/runtime/test/d3d12_geometry_test.cpp
-+++ b/runtime/test/d3d12_geometry_test.cpp
-@@ -91,7 +91,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_geometry_test.cpp src/runtime/test/d3d12_geometry_test.cpp
+--- a/runtime/test/d3d12_geometry_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_geometry_test.cpp	2026-11-23 12:59:15.320574000 -0300
+@@ -91,7 +91,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5642,11 +6706,10 @@ index 6d8bb59..1cfe035 100644
          rt::d3d12::set_device_outer(inner, device.p);
  
          D3D12_ROOT_PARAMETER params[2] = {};
-diff --git a/runtime/test/d3d12_m2_formats_test.cpp b/runtime/test/d3d12_m2_formats_test.cpp
-index 8730c51..1922423 100644
---- a/runtime/test/d3d12_m2_formats_test.cpp
-+++ b/runtime/test/d3d12_m2_formats_test.cpp
-@@ -219,7 +219,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_m2_formats_test.cpp src/runtime/test/d3d12_m2_formats_test.cpp
+--- a/runtime/test/d3d12_m2_formats_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_m2_formats_test.cpp	2026-11-23 12:59:15.321574500 -0300
+@@ -219,7 +219,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5655,11 +6718,10 @@ index 8730c51..1922423 100644
          rt::d3d12::set_device_outer(inner, device.p);
          EXPECT(rt::d3d12::bindless_set(device.p) != VK_NULL_HANDLE);
  
-diff --git a/runtime/test/d3d12_m2_textured_test.cpp b/runtime/test/d3d12_m2_textured_test.cpp
-index f5734e7..cd9448c 100644
---- a/runtime/test/d3d12_m2_textured_test.cpp
-+++ b/runtime/test/d3d12_m2_textured_test.cpp
-@@ -143,7 +143,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_m2_textured_test.cpp src/runtime/test/d3d12_m2_textured_test.cpp
+--- a/runtime/test/d3d12_m2_textured_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_m2_textured_test.cpp	2026-11-23 12:59:15.323575700 -0300
+@@ -143,7 +143,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5668,11 +6730,10 @@ index f5734e7..cd9448c 100644
          rt::d3d12::set_device_outer(inner, device.p);
          EXPECT(rt::d3d12::bindless_set(device.p) != VK_NULL_HANDLE);
  
-diff --git a/runtime/test/d3d12_m3_frame_test.cpp b/runtime/test/d3d12_m3_frame_test.cpp
-index bbf8b53..8647901 100644
---- a/runtime/test/d3d12_m3_frame_test.cpp
-+++ b/runtime/test/d3d12_m3_frame_test.cpp
-@@ -176,7 +176,7 @@ int main(int argc, char** argv) {
+diff -ruN a/runtime/test/d3d12_m3_frame_test.cpp src/runtime/test/d3d12_m3_frame_test.cpp
+--- a/runtime/test/d3d12_m3_frame_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_m3_frame_test.cpp	2026-11-23 12:59:15.325575800 -0300
+@@ -176,7 +176,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5681,11 +6742,10 @@ index bbf8b53..8647901 100644
          rt::d3d12::set_device_outer(inner, device.p);
          EXPECT(rt::d3d12::bindless_set(device.p) != VK_NULL_HANDLE);
  
-diff --git a/runtime/test/d3d12_m4_compute_test.cpp b/runtime/test/d3d12_m4_compute_test.cpp
-index c50a63b..bad8ed9 100644
---- a/runtime/test/d3d12_m4_compute_test.cpp
-+++ b/runtime/test/d3d12_m4_compute_test.cpp
-@@ -134,7 +134,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_m4_compute_test.cpp src/runtime/test/d3d12_m4_compute_test.cpp
+--- a/runtime/test/d3d12_m4_compute_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_m4_compute_test.cpp	2026-11-23 12:59:15.327577500 -0300
+@@ -134,7 +134,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5694,11 +6754,10 @@ index c50a63b..bad8ed9 100644
          rt::d3d12::set_device_outer(inner, device.p);
          EXPECT(rt::d3d12::bindless_set(device.p) != VK_NULL_HANDLE);
  
-diff --git a/runtime/test/d3d12_msaa_draw_test.cpp b/runtime/test/d3d12_msaa_draw_test.cpp
-index 5017a01..3437fe0 100644
---- a/runtime/test/d3d12_msaa_draw_test.cpp
-+++ b/runtime/test/d3d12_msaa_draw_test.cpp
-@@ -88,7 +88,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_msaa_draw_test.cpp src/runtime/test/d3d12_msaa_draw_test.cpp
+--- a/runtime/test/d3d12_msaa_draw_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_msaa_draw_test.cpp	2026-11-23 12:59:15.328576200 -0300
+@@ -88,7 +88,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5707,11 +6766,10 @@ index 5017a01..3437fe0 100644
          rt::d3d12::set_device_outer(inner, device.p);
          if (rt::d3d12::device_push_constants_need_fallback(inner)) {
              std::printf("d3d12_msaa_draw_test: skipped, the PSOs need 144 push-constant bytes and this GPU has %u\n",
-diff --git a/runtime/test/d3d12_present_test.cpp b/runtime/test/d3d12_present_test.cpp
-index 5c4883e..8808f2a 100644
---- a/runtime/test/d3d12_present_test.cpp
-+++ b/runtime/test/d3d12_present_test.cpp
-@@ -333,7 +333,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_present_test.cpp src/runtime/test/d3d12_present_test.cpp
+--- a/runtime/test/d3d12_present_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_present_test.cpp	2026-11-23 19:14:31.908219200 -0300
+@@ -355,7 +355,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5720,11 +6778,10 @@ index 5c4883e..8808f2a 100644
          rt::d3d12::set_device_outer(inner, device.p);
          auto presenter = rt::d3d12::create_window_presenter(inner, window);
          EXPECT(presenter);
-diff --git a/runtime/test/d3d12_set0_compute_test.cpp b/runtime/test/d3d12_set0_compute_test.cpp
-index c2dfdfc..a37f486 100644
---- a/runtime/test/d3d12_set0_compute_test.cpp
-+++ b/runtime/test/d3d12_set0_compute_test.cpp
-@@ -98,7 +98,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_set0_compute_test.cpp src/runtime/test/d3d12_set0_compute_test.cpp
+--- a/runtime/test/d3d12_set0_compute_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_set0_compute_test.cpp	2026-11-23 12:59:15.330576300 -0300
+@@ -98,7 +98,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5733,11 +6790,10 @@ index c2dfdfc..a37f486 100644
          rt::d3d12::set_device_outer(inner, device.p);
          if (rt::d3d12::device_push_constants_need_fallback(inner)) {
              std::printf("d3d12_set0_compute_test: skipped, the PSOs need 144 push-constant bytes and this GPU has %u\n",
-diff --git a/runtime/test/d3d12_subgroup_test.cpp b/runtime/test/d3d12_subgroup_test.cpp
-index ccc0d2a..67e5ef5 100644
---- a/runtime/test/d3d12_subgroup_test.cpp
-+++ b/runtime/test/d3d12_subgroup_test.cpp
-@@ -185,7 +185,7 @@ Result run(vktest::Device& d, const std::filesystem::path& library, const leonid
+diff -ruN a/runtime/test/d3d12_subgroup_test.cpp src/runtime/test/d3d12_subgroup_test.cpp
+--- a/runtime/test/d3d12_subgroup_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_subgroup_test.cpp	2026-11-23 12:59:15.331577100 -0300
+@@ -185,7 +185,7 @@
      CASE_EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
      Ref<ID3D12Device> device;
      CASE_EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5746,7 +6802,7 @@ index ccc0d2a..67e5ef5 100644
      rt::d3d12::set_device_outer(inner, device.p);
  
      // Root signature: [0] four constants (s4..s7 in the console compute layout, D3D-448), the V# the shaders store
-@@ -379,7 +379,7 @@ DrawResult draw(vktest::Device& d, const std::filesystem::path& library, const l
+@@ -379,7 +379,7 @@
      CASE_EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
      Ref<ID3D12Device> device;
      CASE_EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5755,11 +6811,10 @@ index ccc0d2a..67e5ef5 100644
      rt::d3d12::set_device_outer(inner, device.p);
  
      D3D12_VERSIONED_ROOT_SIGNATURE_DESC root_desc{};
-diff --git a/runtime/test/d3d12_translated_draw_test.cpp b/runtime/test/d3d12_translated_draw_test.cpp
-index 62ce7b6..87bf185 100644
---- a/runtime/test/d3d12_translated_draw_test.cpp
-+++ b/runtime/test/d3d12_translated_draw_test.cpp
-@@ -180,7 +180,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_translated_draw_test.cpp src/runtime/test/d3d12_translated_draw_test.cpp
+--- a/runtime/test/d3d12_translated_draw_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_translated_draw_test.cpp	2026-11-23 12:59:15.333578000 -0300
+@@ -180,7 +180,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5768,11 +6823,10 @@ index 62ce7b6..87bf185 100644
          rt::d3d12::set_device_outer(inner, device.p);
  #endif
  
-diff --git a/runtime/test/d3d12_vulkan_device_test.cpp b/runtime/test/d3d12_vulkan_device_test.cpp
-index a40dc25..b2d4761 100644
---- a/runtime/test/d3d12_vulkan_device_test.cpp
-+++ b/runtime/test/d3d12_vulkan_device_test.cpp
-@@ -5074,7 +5074,7 @@ int main() {
+diff -ruN a/runtime/test/d3d12_vulkan_device_test.cpp src/runtime/test/d3d12_vulkan_device_test.cpp
+--- a/runtime/test/d3d12_vulkan_device_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/d3d12_vulkan_device_test.cpp	2026-11-23 19:14:31.983236600 -0300
+@@ -5084,7 +5084,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -5781,7 +6835,7 @@ index a40dc25..b2d4761 100644
          rt::d3d12::set_device_outer(inner, device.p);  // the proxy now owns `inner`
          EXPECT(rt::d3d12_xs::is_device_proxy(device.p));
          EXPECT(rt::d3d12_xs::device_proxy_slot_count(device.p) == 80);  // ID3D12Device11
-@@ -5402,7 +5402,7 @@ int main() {
+@@ -5412,7 +5412,7 @@
              EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(fallback_info, IID_PPV_ARGS(&fallback_inner))));
              Ref<ID3D12Device> fallback_device;
              EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(fallback_inner, __uuidof(ID3D12Device),
@@ -5790,7 +6844,7 @@ index a40dc25..b2d4761 100644
              rt::d3d12::set_device_outer(fallback_inner, fallback_device.p);
              D3D12_FEATURE_DATA_D3D12_OPTIONS8 options8{TRUE};
              EXPECT(fallback_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS8, &options8,
-@@ -5564,7 +5564,14 @@ int main() {
+@@ -5574,7 +5574,14 @@
              Ref<ID3D12CommandQueue> granted_q;
              EXPECT(SUCCEEDED(device->CreateCommandQueue(&rt_desc, IID_PPV_ARGS(&granted_q.p))) && granted_q.p);
              if (granted_q.p) {
@@ -5806,11 +6860,9 @@ index a40dc25..b2d4761 100644
              }
              granted_q.reset();
              rt::d3d12::set_global_realtime_privilege_override_for_test(-1);
-diff --git a/runtime/test/dstorage_test.cpp b/runtime/test/dstorage_test.cpp
-new file mode 100644
-index 0000000..a361782
---- /dev/null
-+++ b/runtime/test/dstorage_test.cpp
+diff -ruN a/runtime/test/dstorage_test.cpp src/runtime/test/dstorage_test.cpp
+--- a/runtime/test/dstorage_test.cpp	1969-12-31 21:00:00.000000000 -0300
++++ b/runtime/test/dstorage_test.cpp	2026-11-23 12:59:33.378063700 -0300
 @@ -0,0 +1,1020 @@
 +// DirectStorage shim (runtime/shims/dstorage.cpp): DStorageGetFactory resolved through the shim registry under its
 +// three module names, driven the way a console title calls it, over synthetic files in %TEMP%. No game data, no GPU.
@@ -6832,10 +7884,9 @@ index 0000000..a361782
 +    std::printf("dstorage: %d checks, %d failures\n", g_checks, g_failures);
 +    return g_failures ? 1 : 0;
 +}
-diff --git a/runtime/test/fixtures/tiny_gdk_load.cpp b/runtime/test/fixtures/tiny_gdk_load.cpp
-index 7a6ca6c..2d1cf6a 100644
---- a/runtime/test/fixtures/tiny_gdk_load.cpp
-+++ b/runtime/test/fixtures/tiny_gdk_load.cpp
+diff -ruN a/runtime/test/fixtures/tiny_gdk_load.cpp src/runtime/test/fixtures/tiny_gdk_load.cpp
+--- a/runtime/test/fixtures/tiny_gdk_load.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/fixtures/tiny_gdk_load.cpp	2026-11-23 12:59:12.708107800 -0300
 @@ -1,7 +1,7 @@
  // A mapped program that reaches the GDK runtime the way xgameruntime.lib's thunks do: it has no import of
 -// xgameruntime.dll, loads it with LoadLibraryW and looks the five run-time entry points up with GetProcAddress
@@ -6847,7 +7898,7 @@ index 7a6ca6c..2d1cf6a 100644
  // GetProcAddress must reach runtime/shims/library_loader.cpp and the offline xgameruntime shim. Run on its own,
  // LoadLibraryW goes to Windows and either fails or loads the PC's Gaming Services runtime, and this never prints
  // PASS. Ordinary test code; no game data.
-@@ -23,6 +23,9 @@ struct Options {        // InitializeApiImplEx2's fourth argument (xodus-gaming/
+@@ -23,6 +23,9 @@
  using InitEx2 = HRESULT(WINAPI*)(ULONG, ULONG, char, const Options*);
  using Query = HRESULT(WINAPI*)(const GUID*, REFIID, void**);
  using Uninit = HRESULT(WINAPI*)();
@@ -6857,7 +7908,7 @@ index 7a6ca6c..2d1cf6a 100644
  
  int fail(const char* stage, unsigned long value) {
      std::printf("tiny_gdk_load: FAIL %s (0x%08lx)\n", stage, value);
-@@ -66,8 +69,9 @@ int main() {
+@@ -66,8 +69,9 @@
      if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, L"xgameruntime.dll", &host_view) && host_view == runtime)
          return fail("xgameruntime.dll came from the host loader, not the shims", 0);
  
@@ -6868,7 +7919,7 @@ index 7a6ca6c..2d1cf6a 100644
      for (const char* name : names)
          if (!GetProcAddress(runtime, name)) return fail(name, GetLastError());
      SetLastError(0);
-@@ -98,6 +102,27 @@ int main() {
+@@ -98,6 +102,27 @@
      reinterpret_cast<Close>(vtable[17])(obj, queue);
      reinterpret_cast<Release>(vtable[2])(obj);
  
@@ -6896,11 +7947,9 @@ index 7a6ca6c..2d1cf6a 100644
      // A class not served (an id no runtime class has, made up for this test) is refused, with the out pointer
      // cleared.
      const GUID unserved = {0x4c454f4e, 0x4944, 0x4100, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}};
-diff --git a/runtime/test/fixtures/tiny_thread_hook.cpp b/runtime/test/fixtures/tiny_thread_hook.cpp
-new file mode 100644
-index 0000000..0187d32
---- /dev/null
-+++ b/runtime/test/fixtures/tiny_thread_hook.cpp
+diff -ruN a/runtime/test/fixtures/tiny_thread_hook.cpp src/runtime/test/fixtures/tiny_thread_hook.cpp
+--- a/runtime/test/fixtures/tiny_thread_hook.cpp	1969-12-31 21:00:00.000000000 -0300
++++ b/runtime/test/fixtures/tiny_thread_hook.cpp	2026-11-23 13:03:31.587637900 -0300
 @@ -0,0 +1,16 @@
 +// Tiny fixture DLL for loader_tls_index0_test (threads): calls a function of the test EXE from its
 +// DllMain(DLL_THREAD_ATTACH). Loaded before the runtime's TLS helper, so on a new thread this runs before the helper's
@@ -6918,11 +7967,9 @@ index 0000000..0187d32
 +    if (reason == DLL_THREAD_ATTACH && g_hook) g_hook();
 +    return TRUE;
 +}
-diff --git a/runtime/test/fixtures/tiny_tls_clones.cpp b/runtime/test/fixtures/tiny_tls_clones.cpp
-new file mode 100644
-index 0000000..c3b957c
---- /dev/null
-+++ b/runtime/test/fixtures/tiny_tls_clones.cpp
+diff -ruN a/runtime/test/fixtures/tiny_tls_clones.cpp src/runtime/test/fixtures/tiny_tls_clones.cpp
+--- a/runtime/test/fixtures/tiny_tls_clones.cpp	1969-12-31 21:00:00.000000000 -0300
++++ b/runtime/test/fixtures/tiny_tls_clones.cpp	2026-11-23 13:03:31.590639300 -0300
 @@ -0,0 +1,13 @@
 +// Tiny fixture EXE for check_tls_clone_cleanup.cmake. It is ordinary test code, not game content.
 +//
@@ -6937,11 +7984,9 @@ index 0000000..c3b957c
 +}
 +
 +int main() { return tiny_tls_get() == 7 && tiny_tls_cb_attach_count() >= 0 && t_value == 3 ? 0 : 1; }
-diff --git a/runtime/test/fixtures/tiny_tls_ga.cpp b/runtime/test/fixtures/tiny_tls_ga.cpp
-new file mode 100644
-index 0000000..a44d0e9
---- /dev/null
-+++ b/runtime/test/fixtures/tiny_tls_ga.cpp
+diff -ruN a/runtime/test/fixtures/tiny_tls_ga.cpp src/runtime/test/fixtures/tiny_tls_ga.cpp
+--- a/runtime/test/fixtures/tiny_tls_ga.cpp	1969-12-31 21:00:00.000000000 -0300
++++ b/runtime/test/fixtures/tiny_tls_ga.cpp	2026-11-23 13:03:31.591639500 -0300
 @@ -0,0 +1,35 @@
 +// Tiny fixture EXE for module TLS index 0. It is ordinary test code, not game content.
 +//
@@ -6978,11 +8023,9 @@ index 0000000..a44d0e9
 +                ok ? "OK" : "FAILED");
 +    return ok ? 0 : 1;
 +}
-diff --git a/runtime/test/loader_tls_index0_test.cpp b/runtime/test/loader_tls_index0_test.cpp
-new file mode 100644
-index 0000000..6e4fa4f
---- /dev/null
-+++ b/runtime/test/loader_tls_index0_test.cpp
+diff -ruN a/runtime/test/loader_tls_index0_test.cpp src/runtime/test/loader_tls_index0_test.cpp
+--- a/runtime/test/loader_tls_index0_test.cpp	1969-12-31 21:00:00.000000000 -0300
++++ b/runtime/test/loader_tls_index0_test.cpp	2026-11-23 13:03:31.592638800 -0300
 @@ -0,0 +1,571 @@
 +// End-to-end checks for module TLS index 0 and a mapped executable, against locally built fixtures.
 +//
@@ -7555,10 +8598,9 @@ index 0000000..6e4fa4f
 +    print_result();
 +    return g_failures ? 1 : 0;
 +}
-diff --git a/runtime/test/queue_proxy_test.cpp b/runtime/test/queue_proxy_test.cpp
-index 142eae8..75feecf 100644
---- a/runtime/test/queue_proxy_test.cpp
-+++ b/runtime/test/queue_proxy_test.cpp
+diff -ruN a/runtime/test/queue_proxy_test.cpp src/runtime/test/queue_proxy_test.cpp
+--- a/runtime/test/queue_proxy_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/queue_proxy_test.cpp	2026-11-23 19:14:32.114279600 -0300
 @@ -8,8 +8,9 @@
  //   - heap, queue and fence proxies are unwrapped where the real runtime receives them (Signal/Wait,
  //     SetEventOnMultipleFenceCompletion, MakeResident/Evict/SetResidencyPriority/EnqueueMakeResident,
@@ -7571,7 +8613,7 @@ index 142eae8..75feecf 100644
  //   - calls from eight threads at once, and repeated device, queue and fence creation without leaks;
  //   - the child-process runner of the differential check itself: large output, hangs, crashes, failed starts.
  // No shaders, game data or Xbox DLLs. LEONIDA_VK_VALIDATION=1 runs the Vulkan device under
-@@ -384,24 +385,41 @@ int check_slots(const Backend& b) {
+@@ -389,24 +390,41 @@
              }
          }
  
@@ -7617,11 +8659,10 @@ index 142eae8..75feecf 100644
      return 0;
  }
  
-diff --git a/runtime/test/unimplemented_policy_test.cpp b/runtime/test/unimplemented_policy_test.cpp
-index 77a6e55..776f88c 100644
---- a/runtime/test/unimplemented_policy_test.cpp
-+++ b/runtime/test/unimplemented_policy_test.cpp
-@@ -231,6 +231,8 @@ void test_classification() {
+diff -ruN a/runtime/test/unimplemented_policy_test.cpp src/runtime/test/unimplemented_policy_test.cpp
+--- a/runtime/test/unimplemented_policy_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/unimplemented_policy_test.cpp	2026-11-23 12:59:33.378063700 -0300
+@@ -231,6 +231,8 @@
      check(cls("gameinput.dll", "GameInputCreate") == ReturnClass::HResult, "GameInputCreate is hresult");
      check(cls("dstorage_xs.dll", "DStorageGetFactory") == ReturnClass::HResult,
            "the console dstorage name is hresult");
@@ -7630,11 +8671,10 @@ index 77a6e55..776f88c 100644
      check(cls("xg_xs.dll", "XGCreateTexture2DComputer") == ReturnClass::Other, "unmeasured xg_xs import is other");
      check(cls("acphal.dll", "AcpHalCreate") == ReturnClass::Other, "unmeasured acphal import is other");
      check(cls("xgameruntime.dll", "XGameRuntimeInitialize") == ReturnClass::HResult, "XGameRuntimeInitialize");
-diff --git a/runtime/test/xbox_present_test.cpp b/runtime/test/xbox_present_test.cpp
-index e151837..03f6f3a 100644
---- a/runtime/test/xbox_present_test.cpp
-+++ b/runtime/test/xbox_present_test.cpp
-@@ -327,7 +327,7 @@ int main() {
+diff -ruN a/runtime/test/xbox_present_test.cpp src/runtime/test/xbox_present_test.cpp
+--- a/runtime/test/xbox_present_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/xbox_present_test.cpp	2026-11-23 12:59:15.338578400 -0300
+@@ -327,7 +327,7 @@
          EXPECT(SUCCEEDED(rt::d3d12::create_vulkan_device(info, IID_PPV_ARGS(&inner))));
          Ref<ID3D12Device> device;
          EXPECT(SUCCEEDED(rt::d3d12_xs::create_device_proxy(inner, __uuidof(ID3D12Device),
@@ -7643,11 +8683,10 @@ index e151837..03f6f3a 100644
          rt::d3d12::set_device_outer(inner, device.p);
          auto presenter = rt::d3d12::create_window_presenter(inner, window);
          EXPECT(presenter);
-diff --git a/runtime/test/xgameruntime_test.cpp b/runtime/test/xgameruntime_test.cpp
-index e6cf380..5841473 100644
---- a/runtime/test/xgameruntime_test.cpp
-+++ b/runtime/test/xgameruntime_test.cpp
-@@ -267,8 +267,8 @@ void check_measured_classes(QueryFn query, XSystemAnalyticsInfo (*named_analytic
+diff -ruN a/runtime/test/xgameruntime_test.cpp src/runtime/test/xgameruntime_test.cpp
+--- a/runtime/test/xgameruntime_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/xgameruntime_test.cpp	2026-11-23 19:14:32.648594900 -0300
+@@ -266,8 +266,8 @@
  }
  
  // xgameruntime.lib's thunks don't import the runtime: they LoadLibraryW(L"xgameruntime.dll") and GetProcAddress five
@@ -7658,7 +8697,7 @@ index e6cf380..5841473 100644
  void check_run_time_load() {
      using LoadW = HMODULE(WINAPI*)(LPCWSTR);
      using LoadExA = HMODULE(WINAPI*)(LPCSTR, HANDLE, DWORD);
-@@ -295,12 +295,15 @@ void check_run_time_load() {
+@@ -294,12 +294,15 @@
            "the same module for a bare name, a full path in any case, LoadLibraryExA and GetModuleHandleW");
  
      const char* entry_points[] = {"InitializeApiImpl", "InitializeApiImplEx", "InitializeApiImplEx2",
@@ -7676,11 +8715,10 @@ index e6cf380..5841473 100644
      SetLastError(0);
      check(get_proc(rt_mod, "NoSuchRuntimeFunction") == nullptr && GetLastError() == ERROR_PROC_NOT_FOUND,
            "an unserved name is NULL with ERROR_PROC_NOT_FOUND, as from a real module");
-diff --git a/runtime/test/xs_proxy_mock_test.cpp b/runtime/test/xs_proxy_mock_test.cpp
-index f003011..3137409 100644
---- a/runtime/test/xs_proxy_mock_test.cpp
-+++ b/runtime/test/xs_proxy_mock_test.cpp
-@@ -70,7 +70,7 @@ namespace xs = rt::d3d12_xs;
+diff -ruN a/runtime/test/xs_proxy_mock_test.cpp src/runtime/test/xs_proxy_mock_test.cpp
+--- a/runtime/test/xs_proxy_mock_test.cpp	2026-11-23 18:01:51.000000000 -0300
++++ b/runtime/test/xs_proxy_mock_test.cpp	2026-11-23 12:59:15.340578300 -0300
+@@ -70,7 +70,7 @@
  
  // ---- Mocks ----
  
@@ -7689,7 +8727,7 @@ index f003011..3137409 100644
  
  constexpr unsigned kMockSlots = 128;
  constexpr std::uint64_t kFenceHandle = 0x1000, kResourceHandle = 0x2000;  // the handles the mock device opens
-@@ -85,6 +85,7 @@ struct Mock {
+@@ -85,6 +85,7 @@
      int device_level;        // device: highest ID3D12DeviceN it answers (0 = ID3D12Device only)
      bool fence1;             // fence: answers ID3D12Fence1; device: the fences it makes do
      bool allocator_tag;      // allocator: answers kLeonidaCommandAllocatorTag; device: the allocators it makes do
@@ -7697,7 +8735,7 @@ index f003011..3137409 100644
      bool create_null;        // device: creation returns create_result with no object
      HRESULT create_result;   // device: what creation returns (S_OK makes the object)
      Mock* last_child;        // device: the object its last creation or open made
-@@ -149,6 +150,16 @@ bool mock_has(const Mock* m, REFIID iid) {
+@@ -149,6 +150,16 @@
          case Kind::allocator:
              return IsEqualIID(iid, __uuidof(ID3D12CommandAllocator)) ||
                     (m->allocator_tag && IsEqualIID(iid, xs::kLeonidaCommandAllocatorTag));
@@ -7714,7 +8752,7 @@ index f003011..3137409 100644
          default: return false;
      }
  }
-@@ -181,13 +192,16 @@ void copy_array(Mock* m, unsigned slot, std::uint64_t objects, std::uint64_t cou
+@@ -181,13 +192,16 @@
      for (std::uint32_t i = 0; in && i < static_cast<std::uint32_t>(count) && i < 4; ++i) m->array[slot][i] = in[i];
  }
  
@@ -7733,7 +8771,7 @@ index f003011..3137409 100644
              case 75: return static_cast<std::uint32_t>(mock_create(m, Kind::queue, a3, a4));   // CreateCommandQueue1
              case 36: return static_cast<std::uint32_t>(mock_create(m, Kind::fence, a3, a4));   // CreateFence
              case 32:                                                                          // OpenSharedHandle
-@@ -202,12 +216,20 @@ std::uint64_t mock_call(Mock* m, unsigned slot, const std::uint64_t* words) {
+@@ -202,12 +216,20 @@
          return S_OK;
      }
      if (m->kind == Kind::fence && slot == 8) return kCompletedValue;  // GetCompletedValue
@@ -7755,7 +8793,7 @@ index f003011..3137409 100644
      if constexpr (Slot == 0) {
          return static_cast<std::uint32_t>(mock_query(self, reinterpret_cast<const IID*>(a1),
                                                       reinterpret_cast<void**>(a2)));
-@@ -221,8 +243,8 @@ std::uint64_t WINAPI mock_slot(Mock* self, std::uint64_t a1, std::uint64_t a2, s
+@@ -221,8 +243,8 @@
          // forwarding them as stack arguments let MSVC tail-call mock_call and write into the caller's saved
          // registers (an optimized build corrupted the test's own locals that way).
          ++self->calls[Slot];
@@ -7766,7 +8804,7 @@ index f003011..3137409 100644
          return mock_call(self, Slot, words);
      }
  }
-@@ -241,7 +263,7 @@ HRESULT WINAPI mock_create_command_list(Mock* self, std::uint64_t node_mask, std
+@@ -241,7 +263,7 @@
      if (!out) return S_FALSE;
      *out = nullptr;
      if (self->create_null || FAILED(self->create_result)) return self->create_result;
@@ -7775,7 +8813,7 @@ index f003011..3137409 100644
      self->last_child = child;
      return mock_query(child, riid, out);
  }
-@@ -269,10 +291,10 @@ using SlotFn = std::uint64_t(WINAPI*)(void*, std::uint64_t, std::uint64_t, std::
+@@ -269,10 +291,10 @@
                                        std::uint64_t, std::uint64_t, std::uint64_t, std::uint64_t, std::uint64_t);
  
  std::uint64_t raw(const void* object, unsigned slot, std::uint64_t a1 = 0, std::uint64_t a2 = 0,
@@ -7789,7 +8827,7 @@ index f003011..3137409 100644
  }
  
  HRESULT hr_of(std::uint64_t value) {
-@@ -293,11 +315,12 @@ const IID kDevice1Iid = __uuidof(ID3D12Device1);
+@@ -293,11 +315,12 @@
  const D3D12_COMMAND_QUEUE_DESC kQueueDesc{};
  
  // A device proxy over a new mock device. The proxy takes the mock's one reference.
@@ -7803,7 +8841,7 @@ index f003011..3137409 100644
      mock->refs = 1;
      void* device = nullptr;
      if (FAILED(xs::create_device_proxy(reinterpret_cast<ID3D12Device*>(mock), __uuidof(ID3D12Device), &device)))
-@@ -821,7 +844,167 @@ int run_env_slots(bool valid) {
+@@ -821,7 +844,167 @@
      return 0;
  }
  
@@ -7972,7 +9010,7 @@ index f003011..3137409 100644
  
  int check_tail(bool want_guarded) {
      Mock* mock = nullptr;
-@@ -835,8 +1018,10 @@ int check_tail(bool want_guarded) {
+@@ -835,8 +1018,10 @@
      // Signal (14) still reaches the real queue, with the real fence.
      EXPECT(hr_of(raw(queue, 14, word(fence), 5)) == S_OK && queue_mock->calls[14] == 1 &&
             queue_mock->args[14][0] == word(xs::fence_proxy_real_fence(fence)) && queue_mock->args[14][1] == 5);
@@ -7984,7 +9022,7 @@ index f003011..3137409 100644
      for (unsigned slot = 12; slot < xs::fence_proxy_table_size(); ++slot) EXPECT(hr_of(raw(fence, slot)) == E_NOTIMPL);
      EXPECT(xs::queue_table_overruns() == 0 && xs::fence_table_overruns() == 0);
      EXPECT(release(queue) == 0 && release(fence) == 0 && release(device) == 0 && mock->refs == 0);
-@@ -916,13 +1101,51 @@ int run_fault_mode(const char* mode) {
+@@ -916,13 +1101,51 @@
          g_armed = false;
          if (failed) return 1;
          EXPECT(g_injected.load() > 0);  // the proxy's own call was the one refused
@@ -8038,7 +9076,7 @@ index f003011..3137409 100644
  }  // namespace
  
  // A failure ends the process with a message on stderr, never in a dialog a test run would wait on: abort() (an
-@@ -948,7 +1171,8 @@ int main(int argc, char** argv) {
+@@ -948,7 +1171,8 @@
      }
      if (argc != 1) return 2;
      if (check_tail(true) || check_levels() || check_fence1() || check_create_failures() || check_open_shared() ||

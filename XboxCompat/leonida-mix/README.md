@@ -170,3 +170,16 @@ what binds ctx+0x12640[] (the SetRenderTargets equivalent) and why it is skipped
   FUN_141bb1b60 -> FUN_142225ef0). None of the registered task bodies (e.g. the state/program registration FUN_1457870f0 via
   FUN_1457780e0) ever runs although every pool worker is idle (waiting at FUN_14221c1f0), so the work-queue wake-up path is the next suspect.
   DirectStorage streaming itself is fine now (4200 zlib requests of shaders.rpf executed, 0 pending).
+
+---
+## Update 2026-11-23 (night 5): rebased onto the newer upstream snapshot
+The patch is now a diff against the newer Leonida snapshot a user supplied as a zip (`Leonida-main.zip`; upstream's GitHub repository is
+disabled, so there is no commit id): `diff -ruN <snapshot>/runtime <ours>/runtime`, paths rewritten to a/ and b/. Merged by three-way
+(base 5d96ea8, ours, snapshot): 15 files merged, 423 copied, 62 new; conflicts resolved by taking upstream for d3d12_xs.cpp and
+xgameruntime.cpp, keeping our xmem.cpp (placeholders and physical pages), and the union for main.cpp / shader_library.h (`exe/` folder
+added to upstream's `fspx`, `bvh`). Upstream's xg_xs.cpp stub now registers the xg_xs exports; here its results are S_OK (the title aborts
+on a failure). Upstream has still not run `--run` on the retail executable, so nothing of the boot work above exists there.
+New upstream docs worth reading: pso_cache.md (the 275 MB PSO cache is what our 4205 zlib DirectStorage requests load: ~25k graphics and
+~2.7k compute PSOs with native code), sgd5_render_states.md, first_light.md.
+Open: the draw's program (`lib[0xc78][idx]`, library object at image+0x1476667b8) holds unrelocated packed values for idx >= 128 and zeros
+for idx < 128, i.e. the shader library resource is not fully "placed"; the first frame (main thread, FUN_1423ca960) needs it.
